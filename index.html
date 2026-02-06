@@ -183,13 +183,26 @@
     </footer>
 
     <div v-if="showFriendsModal" class="modal-overlay" @click.self="showFriendsModal = false">
-        <div class="modal-content">
-            <div class="input-group">
-                <input v-model="searchUsername" type="text" placeholder="@username_друга" @keyup.enter="searchFriend">
-            </div>
-            <button class="btn-primary" @click="searchFriend">НАЙТИ ПРОФИЛЬ</button>
+    <div class="modal-content">
+        <div class="input-group">
+            <input v-model="searchUsername" type="text" placeholder="@username_друга" @keyup.enter="searchFriend()">
         </div>
+        
+        <div v-if="recentSearches.length > 0" style="margin-bottom: 20px;">
+            <p style="font-size: 12px; color: var(--tg-hint); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px;">Недавние</p>
+            <div style="display: flex; gap: 15px; overflow-x: auto; padding-bottom: 5px;">
+                <div v-for="user in recentSearches" :key="user.uid" @click="searchFriend(user.username)" style="display: flex; flex-direction: column; align-items: center; gap: 5px; min-width: 60px;">
+                    <img :src="user.photo" style="width: 45px; height: 45px; border-radius: 50%; object-fit: cover; border: 1px solid rgba(255,255,255,0.1);">
+                    <span style="font-size: 10px; color: var(--tg-text); text-align: center; width: 60px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                        {{ user.name }}
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <button class="btn-primary" @click="searchFriend()">НАЙТИ ПРОФИЛЬ</button>
     </div>
+</div>
 
     <div v-if="showAddModal" class="modal-overlay" @click.self="showAddModal = false">
         <div class="modal-content">
@@ -230,9 +243,11 @@
                 users: {}, wishes: [], archive: [],
                 activeTab: 'wishes', currentIdx: 0,
                 showAddModal: false, showFriendsModal: false,
-                newTitle: '', newImg: null, searchUsername: '',
+                newTitle: '', newImg: null, 
+                searchUsername: '', // Оставьте только одно объявление здесь
                 isHolding: false, isDragging: false, isNearBtn: false,
-                startX: 0, moveX: 0, moveY: 0, holdTimer: null
+                startX: 0, moveX: 0, moveY: 0, holdTimer: null,
+                recentSearches: JSON.parse(localStorage.getItem('recent_history') || '[]')
             }
         },
         computed: {
@@ -272,18 +287,40 @@
                 });
             },
 
-            async searchFriend() {
-                let name = this.searchUsername.replace('@', '').toLowerCase().trim();
+            async searchFriend(savedName = null) {
+                let name = (savedName || this.searchUsername).replace('@', '').toLowerCase().trim();
+                if (!name) return;
+
                 const snap = await db.ref(`usernames/${name}`).once('value');
                 if (snap.exists()) {
-                    this.viewingID = snap.val();
+                    const friendUID = snap.val();
+                    const friendData = this.users[friendUID];
+
+                    if (friendUID !== this.myUID) {
+                        this.addToHistory({
+                            uid: friendUID,
+                            username: name,
+                            name: friendData?.name || name,
+                            photo: friendData?.photo || `https://ui-avatars.com/api/?name=${name}`
+                        });
+                    }
+
+                    this.viewingID = friendUID;
                     this.currentIdx = 0;
                     this.sync();
                     this.showFriendsModal = false;
+                    this.searchUsername = ''; // Очистить поле
                     this.haptic('success');
                 } else {
-                    tg.showAlert("Пользователь не найден. Он должен зайти в бот хотя бы раз.");
+                    tg.showAlert("Пользователь не найден.");
                 }
+            },
+            
+            addToHistory(user) {
+                this.recentSearches = this.recentSearches.filter(u => u.uid !== user.uid);
+                this.recentSearches.unshift(user);
+                if (this.recentSearches.length > 5) this.recentSearches.pop();
+                localStorage.setItem('recent_history', JSON.stringify(this.recentSearches)); }
             },
 
             handleMainAction() {
