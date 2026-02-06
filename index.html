@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Хотелки Mini App</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    
+    <style>
+        :root {
+            --tg-bg: var(--tg-theme-bg-color, #000);
+            --tg-sec-bg: var(--tg-theme-secondary-bg-color, #1c1c1e);
+            --tg-text: var(--tg-theme-text-color, #fff);
+            --tg-hint: var(--tg-theme-hint-color, #8e8e93);
+            --tg-link: var(--tg-theme-link-color, #007aff);
+            --accent: #fff;
+            --danger: #ff3b30;
+        }
+
+        * { -webkit-tap-highlight-color: transparent; outline: none; box-sizing: border-box; }
+
+        body {
+            background: var(--tg-bg); color: var(--tg-text); margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+            overflow: hidden; height: 100vh;
+        }
+
+        #app { width: 100%; height: 100%; display: flex; flex-direction: column; }
+
+        /* Эффект погружения */
+        .glass-overlay { 
+            position: fixed; inset: 0; z-index: 45; 
+            background: rgba(0,0,0,0);
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1); 
+            pointer-events: none;
+        }
+        .is-holding .glass-overlay { 
+            background: rgba(0,0,0,0.6); 
+            backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
+        }
+
+        /* Заголовок витрины */
+        .header-profile {
+            padding: 15px 20px; display: flex; align-items: center; gap: 12px; z-index: 100;
+        }
+        .header-avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 1.5px solid var(--tg-link); }
+        .header-info h1 { margin: 0; font-size: 16px; font-weight: 700; }
+        .header-info p { margin: 0; font-size: 12px; color: var(--tg-hint); }
+
+        main { 
+            flex: 1; position: relative; display: flex; align-items: center; 
+            justify-content: center; perspective: 1000px; touch-action: none;
+        }
+        
+        /* Карточки с инерцией */
+        .wish-card {
+            position: absolute; width: 88vw; height: 120vw; max-width: 350px; max-height: 500px;
+            border-radius: 35px; background: var(--tg-sec-bg);
+            border: 1px solid rgba(255,255,255,0.08);
+            box-shadow: 0 30px 60px rgba(0,0,0,0.5);
+            transition: transform 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.4s;
+            will-change: transform;
+        }
+        .card-inner { width: 100%; height: 100%; border-radius: 34px; overflow: hidden; position: relative; }
+        .card-inner img { width: 100%; height: 100%; object-fit: cover; }
+        
+        .card-label {
+            position: absolute; bottom: 0; left: 0; right: 0; padding: 40px 25px 25px;
+            background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, transparent 100%);
+        }
+        .card-label h2 { margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -0.5px; }
+
+        .card-center { transform: scale(1) translateZ(0); z-index: 40; }
+        .card-next { transform: scale(0.85) translateY(15px); opacity: 0.4; z-index: 30; }
+        .card-prev { transform: scale(0.85) translateY(-15px); opacity: 0; z-index: 30; }
+
+        /* Нижняя панель управления */
+        footer { 
+            height: 130px; display: flex; justify-content: space-around; 
+            align-items: center; padding: 0 30px 20px; z-index: 100;
+        }
+
+        .btn-ui {
+            width: 55px; height: 55px; border-radius: 50%; border: none;
+            display: flex; align-items: center; justify-content: center;
+            background: rgba(255,255,255,0.08); color: white;
+            transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .btn-main {
+            width: 75px; height: 75px; background: white; color: black;
+            box-shadow: 0 15px 30px rgba(0,0,0,0.2);
+        }
+        
+        /* Кнопка удаления/редактирования */
+        .status-btn { 
+            position: absolute; left: 50%; margin-left: -27px;
+            background: var(--danger); transform: scale(0); opacity: 0;
+        }
+        .is-holding .status-btn { transform: translateX(-95px) scale(1); opacity: 1; }
+        .is-holding .btn-main { transform: translateX(20px); }
+
+        /* Стили модалок */
+        .modal-overlay { 
+            position: fixed; inset: 0; background: rgba(0,0,0,0.85); 
+            backdrop-filter: blur(15px); z-index: 2000; 
+            display: flex; align-items: flex-end; justify-content: center;
+        }
+        .modal-content { 
+            width: 100%; background: var(--tg-sec-bg);
+            padding: 30px; border-radius: 35px 35px 0 0;
+            animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+        .input-group { margin-bottom: 20px; }
+        input { 
+            background: rgba(255,255,255,0.05); border: 1.5px solid transparent;
+            color: white; padding: 18px; border-radius: 20px; width: 100%; font-size: 16px;
+        }
+        input:focus { border-color: var(--tg-link); }
+
+        .btn-primary { 
+            background: var(--tg-link); color: white; padding: 18px; border-radius: 20px; 
+            border: none; font-weight: 700; width: 100%; font-size: 16px;
+        }
+
+        [v-cloak] { display: none; }
+    </style>
+</head>
+<body>
+
+<div id="app" v-cloak :class="{'is-holding': isHolding}">
+    <div class="glass-overlay"></div>
+    
+    <header class="header-profile" v-if="currentUser">
+        <img :src="currentUser.photo" class="header-avatar">
+        <div class="header-info">
+            <h1>{{ viewingID ? currentUser.name : 'Мои хотелки' }}</h1>
+            <p>{{ viewingID ? '@' + currentUser.username : 'Ваш список' }}</p>
+        </div>
+    </header>
+
+    <main @touchstart="handleStart" @touchmove="handleMove" @touchend="handleEnd">
+        <div v-for="(item, index) in displayItems" :key="item.id"
+            class="wish-card" :class="getCardClass(index)"
+            :style="getDraggingStyle(index)">
+            <div class="card-inner">
+                <img :src="item.image" loading="lazy">
+                <div class="card-label">
+                    <h2>{{ item.title }}</h2>
+                </div>
+            </div>
+        </div>
+        <div v-if="displayItems.length === 0" style="opacity:0.2; font-weight:900; font-size:14px; letter-spacing:3px;">EMPTY</div>
+    </main>
+
+    <footer>
+        <button v-if="!isHolding" @click="showFriendsModal = true" class="btn-ui">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+        </button>
+        <div v-else style="width:55px;"></div>
+
+        <div style="position:relative; display:flex; align-items:center;">
+            <button class="btn-ui status-btn" :style="isNearBtn ? 'transform: translateX(-95px) scale(1.15); background:#ff3b30;' : ''">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+            </button>
+
+            <button class="btn-ui btn-main" @click="handleMainAction">
+                <svg v-if="viewingID" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                <svg v-else width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            </button>
+        </div>
+
+        <button v-if="!isHolding" @click="toggleArchive" class="btn-ui">
+            <svg v-if="activeTab === 'wishes'" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="21 8 21 21 3 21 3 8"></polyline><rect x="1" y="3" width="22" height="5"></rect></svg>
+            <svg v-else width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path></svg>
+        </button>
+        <div v-else style="width:55px;"></div>
+    </footer>
+
+    <div v-if="showFriendsModal" class="modal-overlay" @click.self="showFriendsModal = false">
+        <div class="modal-content">
+            <div class="input-group">
+                <input v-model="searchUsername" type="text" placeholder="@username_друга" @keyup.enter="searchFriend">
+            </div>
+            <button class="btn-primary" @click="searchFriend">НАЙТИ ПРОФИЛЬ</button>
+        </div>
+    </div>
+
+    <div v-if="showAddModal" class="modal-overlay" @click.self="showAddModal = false">
+        <div class="modal-content">
+            <div @click="$refs.f.click()" style="width:100%; height:250px; border-radius:25px; background:rgba(255,255,255,0.03); border:2px dashed rgba(255,255,255,0.1); display:flex; align-items:center; justify-content:center; overflow:hidden; margin-bottom:15px;">
+                <input type="file" ref="f" style="display:none" @change="onPhoto" accept="image/*">
+                <img v-if="newImg" :src="newImg" style="width:100%; height:100%; object-fit:cover;">
+                <span v-else style="color:var(--tg-hint)">Добавить фото</span>
+            </div>
+            <input v-model="newTitle" type="text" placeholder="Что это будет?" style="margin-bottom:15px;">
+            <button class="btn-primary" @click="save">СОХРАНИТЬ</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const tg = window.Telegram.WebApp;
+    tg.expand();
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyDqcpROB2mIMh2rwXIAq_kAF36xhcGyiAQ",
+        authDomain: "wishlist-f08b7.firebaseapp.com",
+        databaseURL: "https://wishlist-f08b7-default-rtdb.europe-west1.firebasedatabase.app",
+        projectId: "wishlist-f08b7",
+        storageBucket: "wishlist-f08b7.firebasestorage.app",
+        messagingSenderId: "748949104001",
+        appId: "1:748949104001:web:5922a0dffe8b0e88893480"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    const app = Vue.createApp({
+        data() {
+            return {
+                myUID: tg.initDataUnsafe?.user?.id?.toString() || 'LOCAL_USER',
+                myUsername: tg.initDataUnsafe?.user?.username?.toLowerCase() || '',
+                viewingID: null,
+                users: {}, wishes: [], archive: [],
+                activeTab: 'wishes', currentIdx: 0,
+                showAddModal: false, showFriendsModal: false,
+                newTitle: '', newImg: null, searchUsername: '',
+                isHolding: false, isDragging: false, isNearBtn: false,
+                startX: 0, moveX: 0, moveY: 0, holdTimer: null
+            }
+        },
+        computed: {
+            displayItems() { return this.activeTab === 'wishes' ? this.wishes : this.archive; },
+            currentUser() { return this.users[this.viewingID || this.myUID]; }
+        },
+        mounted() {
+            this.initAccount();
+            this.sync();
+            db.ref('users').on('value', s => this.users = s.val() || {});
+        },
+        methods: {
+            haptic(s) { try { tg.HapticFeedback.impactOccurred(s || 'medium'); } catch(e){} },
+            
+            initAccount() {
+                const u = tg.initDataUnsafe?.user;
+                if (u) {
+                    const profile = {
+                        name: u.first_name,
+                        username: this.myUsername,
+                        photo: u.photo_url || `https://ui-avatars.com/api/?name=${u.first_name}&background=random`
+                    };
+                    db.ref(`users/${this.myUID}`).update(profile);
+                    if (this.myUsername) db.ref(`usernames/${this.myUsername}`).set(this.myUID);
+                }
+            },
+
+            sync() {
+                const id = this.viewingID || this.myUID;
+                db.ref(`users/${id}/wishes`).on('value', s => {
+                    const d = s.val() || {};
+                    this.wishes = Object.keys(d).map(k => ({id: k, ...d[k]})).reverse();
+                });
+                db.ref(`users/${id}/archive`).on('value', s => {
+                    const d = s.val() || {};
+                    this.archive = Object.keys(d).map(k => ({id: k, ...d[k]})).reverse();
+                });
+            },
+
+            async searchFriend() {
+                let name = this.searchUsername.replace('@', '').toLowerCase().trim();
+                const snap = await db.ref(`usernames/${name}`).once('value');
+                if (snap.exists()) {
+                    this.viewingID = snap.val();
+                    this.currentIdx = 0;
+                    this.sync();
+                    this.showFriendsModal = false;
+                    this.haptic('success');
+                } else {
+                    tg.showAlert("Пользователь не найден. Он должен зайти в бот хотя бы раз.");
+                }
+            },
+
+            handleMainAction() {
+                this.haptic();
+                if (this.viewingID) { this.viewingID = null; this.sync(); }
+                else { this.showAddModal = true; }
+            },
+
+            toggleArchive() {
+                this.haptic('light');
+                this.activeTab = this.activeTab === 'wishes' ? 'archive' : 'wishes';
+                this.currentIdx = 0;
+            },
+
+            getCardClass(i) {
+                if (i === this.currentIdx) return 'card-center';
+                if (i > this.currentIdx) return 'card-next';
+                return 'card-prev';
+            },
+
+            getDraggingStyle(i) {
+                if (i !== this.currentIdx || !this.isDragging) return {};
+                return { 
+                    transform: `translate3d(${this.moveX}px, ${this.moveY}px, 0) rotate(${this.moveX/20}deg)`,
+                    transition: 'none',
+                    zIndex: 1000
+                };
+            },
+
+            handleStart(e) {
+                if (!this.displayItems[this.currentIdx]) return;
+                this.startX = e.touches[0].clientX;
+                this.holdTimer = setTimeout(() => {
+                    this.isHolding = true; this.isDragging = true; this.haptic('heavy');
+                }, 400);
+            },
+
+            handleMove(e) {
+                const p = e.touches[0];
+                this.moveX = p.clientX - this.startX;
+                if (!this.isHolding && Math.abs(this.moveX) > 10) clearTimeout(this.holdTimer);
+                if (this.isHolding) {
+                    const b = document.querySelector('.btn-main').getBoundingClientRect();
+                    this.isNearBtn = Math.hypot(p.clientX - (b.left - 40), p.clientY - (b.top + 30)) < 70;
+                }
+            },
+
+            handleEnd() {
+                clearTimeout(this.holdTimer);
+                const item = this.displayItems[this.currentIdx];
+                const target = this.viewingID || this.myUID;
+
+                if (this.isHolding && this.isNearBtn) {
+                    if (this.activeTab === 'wishes') {
+                        if (this.viewingID) db.ref(`users/${target}/archive`).push({...item, done: true});
+                        db.ref(`users/${target}/wishes/${item.id}`).remove();
+                    } else { db.ref(`users/${target}/archive/${item.id}`).remove(); }
+                    this.haptic('success');
+                } else if (Math.abs(this.moveX) > 80) {
+                    if (this.moveX > 0 && this.currentIdx > 0) this.currentIdx--;
+                    else if (this.moveX < 0 && this.currentIdx < this.displayItems.length - 1) this.currentIdx++;
+                }
+                this.isHolding = this.isDragging = this.isNearBtn = false;
+                this.moveX = 0;
+            },
+
+            onPhoto(e) {
+                const f = e.target.files[0];
+                const r = new FileReader();
+                r.onload = (ev) => {
+                    const img = new Image();
+                    img.src = ev.target.result;
+                    img.onload = () => {
+                        const c = document.createElement('canvas');
+                        const s = Math.min(800 / img.width, 800 / img.height);
+                        c.width = img.width * s; c.height = img.height * s;
+                        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+                        this.newImg = c.toDataURL('image/jpeg', 0.8);
+                    };
+                };
+                r.readAsDataURL(f);
+            },
+
+            save() {
+                if (!this.newTitle || !this.newImg) return;
+                db.ref(`users/${this.myUID}/wishes`).push({ ownerId: this.myUID, title: this.newTitle, image: this.newImg });
+                this.showAddModal = false; this.newTitle = ''; this.newImg = null;
+                this.haptic('success');
+            }
+        }
+    }).mount('#app');
+</script>
+</body>
+</html>
