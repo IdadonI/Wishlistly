@@ -302,6 +302,8 @@
 <script>
     const tg = window.Telegram.WebApp;
     tg.expand();
+    // Сообщаем Telegram, что приложение готово к работе
+    tg.ready();
 
     const firebaseConfig = {
         apiKey: "AIzaSyDqcpROB2mIMh2rwXIAq_kAF36xhcGyiAQ",
@@ -452,13 +454,18 @@
                 const botLink = "https://t.me/Wishlistly_bot";
                 const text = "Посмотри мои хотелки! 😇";
                 
-                // Добавляем deep link (ID пользователя), если он есть
-                const shareUrl = this.myUsername 
-                    ? `${botLink}?start=${this.myUsername}`
-                    : botLink;
+                // Формируем прямую ссылку для шаринга
+                // Если есть username, добавляем его как параметр старта
+                let shareUrl = botLink;
+                if (this.myUsername) {
+                    shareUrl += `?start=${this.myUsername}`;
+                }
 
-                const finalLink = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(text)}`;
-                tg.openTelegramLink(finalLink);
+                // Используем универсальный формат t.me/share/url
+                const fullShareLink = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(text)}`;
+                
+                // Вызываем метод открытия ссылки внутри Telegram (это откроет нативный выбор чата)
+                tg.openTelegramLink(fullShareLink);
             },
 
             getCardClass(index) {
