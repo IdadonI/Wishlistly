@@ -30,6 +30,24 @@
 
         #app { width: 100%; height: 100%; display: flex; flex-direction: column; }
 
+        .btn-main.near-trash {
+            background-color: var(--danger) !important;
+            color: #fff !important;
+            transform: scale(1.1) !important;
+            box-shadow: 0 0 30px rgba(255, 59, 48, 0.5);
+        }
+
+        .wish-card {
+            position: absolute; 
+            width: 88vw; height: 120vw; max-width: 350px; max-height: 500px;
+            border-radius: 35px; background: var(--tg-sec-bg);
+            border: 1px solid rgba(255,255,255,0.08);
+            box-shadow: 0 30px 60px rgba(0,0,0,0.5);
+            transform-origin: bottom center;
+            transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.4s;
+            will-change: transform;
+        }
+
         .glass-overlay { 
             position: fixed; inset: 0; z-index: 45; 
             background: rgba(0,0,0,0);
@@ -145,13 +163,21 @@
         <div v-else style="width:55px;"></div>
 
         <div style="position:relative; display:flex; align-items:center;">
-            <button class="btn-ui status-btn" :style="isNearBtn ? 'transform: translateX(-95px) scale(1.15); background:#ff3b30;' : ''">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-            </button>
-
-            <button class="btn-ui btn-main" @click="handleMainAction">
-                <svg v-if="viewingID" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="15 18 9 12 15 6"></polyline></svg>
-                <svg v-else width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            <button class="btn-ui btn-main" 
+                    :class="{'near-trash': isNearBtn}"
+                    @click="handleMainAction">
+            
+                <svg v-if="isHolding" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                </svg>
+            
+                <svg v-else-if="viewingID" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                    <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+            
+                <svg v-else width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                    <line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
             </button>
         </div>
 
@@ -191,7 +217,7 @@
                 <img v-if="newImg" :src="newImg" style="width:100%; height:100%; object-fit:cover;">
                 <span v-else style="color:var(--tg-hint)">Добавить фото</span>
             </div>
-            <input v-model="newTitle" type="text" placeholder="Что это будет?" style="margin-bottom:15px;">
+            <input v-model="newTitle" type="text" placeholder="Я хочу.." style="margin-bottom:15px;">
             <button class="btn-primary" @click="save">СОХРАНИТЬ</button>
         </div>
     </div>
@@ -226,7 +252,7 @@
                 newTitle: '', newImg: null, 
                 searchUsername: '', 
                 isHolding: false, isDragging: false, isNearBtn: false,
-                startX: 0, moveX: 0, moveY: 0, holdTimer: null,
+                startX: 0, startY: 0, moveX: 0, moveY: 0, holdTimer: null,
                 recentSearches: JSON.parse(localStorage.getItem('recent_history') || '[]')
             }
         },
@@ -315,36 +341,75 @@
                 this.currentIdx = 0;
             },
 
-            getCardClass(i) {
-                if (i === this.currentIdx) return 'card-center';
-                if (i > this.currentIdx) return 'card-next';
-                return 'card-prev';
+            getCardClass(index) {
+                if (index === this.currentIdx) return 'card-center';
+                return '';
             },
 
-            getDraggingStyle(i) {
-                if (i !== this.currentIdx || !this.isDragging) return {};
-                return { 
-                    transform: `translate3d(${this.moveX}px, ${this.moveY}px, 0) rotate(${this.moveX/20}deg)`,
-                    transition: 'none',
-                    zIndex: 1000
+            getDraggingStyle(index) {    
+            if (index < this.currentIdx) {
+                return {
+                    transform: 'translateY(-120%) scale(0.8) rotate(-20deg)',
+                    opacity: 0,
+                    zIndex: 0,
+                    pointerEvents: 'none'
                 };
-            },
+            }
+
+            if (index === this.currentIdx) {
+                if (this.isDragging) {
+                    return {
+                        transform: `translate3d(${this.moveX}px, ${this.moveY}px, 0) rotate(${this.moveX / 15}deg)`,
+                        transition: 'none', 
+                        zIndex: 100
+                    };
+                }
+                return { zIndex: 100, transform: 'translate3d(0,0,0) rotate(0deg)' };
+            }           
+
+            if (index > this.currentIdx) {
+                const diff = index - this.currentIdx;         
+                if (diff > 3) return { opacity: 0, pointerEvents: 'none' };
+                const rotateStep = 4; 
+                const translateYStep = 12; 
+                const scaleStep = 0.04;  
+                return {
+                    transform: `rotate(${diff * rotateStep}deg) translateY(${diff * translateYStep}px) scale(${1 - diff * scaleStep})`,
+                    opacity: 1 - diff * 0.2, 
+                    zIndex: 100 - diff,     
+                    pointerEvents: 'none'
+                };
+            }
+        },  
 
             handleStart(e) {
                 if (!this.displayItems[this.currentIdx]) return;
                 this.startX = e.touches[0].clientX;
+                this.startY = e.touches[0].clientY; 
                 this.holdTimer = setTimeout(() => {
-                    this.isHolding = true; this.isDragging = true; this.haptic('heavy');
+                    this.isHolding = true; 
+                    this.isDragging = true; 
+                    this.haptic('heavy');
                 }, 400);
             },
 
             handleMove(e) {
                 const p = e.touches[0];
                 this.moveX = p.clientX - this.startX;
-                if (!this.isHolding && Math.abs(this.moveX) > 10) clearTimeout(this.holdTimer);
+                this.moveY = p.clientY - this.startY;
+
+                if (!this.isHolding && Math.abs(this.moveX) > 10) {
+                    clearTimeout(this.holdTimer); }
+
                 if (this.isHolding) {
-                    const b = document.querySelector('.btn-main').getBoundingClientRect();
-                    this.isNearBtn = Math.hypot(p.clientX - (b.left - 40), p.clientY - (b.top + 30)) < 70;
+                    const btn = document.querySelector('.btn-main');
+                    if (btn) {
+                        const rect = btn.getBoundingClientRect();
+                        const btnCenterX = rect.left + rect.width / 2;
+                        const btnCenterY = rect.top + rect.height / 2;
+                        const dist = Math.hypot(p.clientX - btnCenterX, p.clientY - btnCenterY);
+                        this.isNearBtn = dist < 80;
+                    }
                 }
             },
 
@@ -354,17 +419,26 @@
                 const target = this.viewingID || this.myUID;
 
                 if (this.isHolding && this.isNearBtn) {
-                    if (this.activeTab === 'wishes') {
-                        if (this.viewingID) db.ref(`users/${target}/archive`).push({...item, done: true});
-                        db.ref(`users/${target}/wishes/${item.id}`).remove();
-                    } else { db.ref(`users/${target}/archive/${item.id}`).remove(); }
                     this.haptic('success');
-                } else if (Math.abs(this.moveX) > 80) {
-                    if (this.moveX > 0 && this.currentIdx > 0) this.currentIdx--;
-                    else if (this.moveX < 0 && this.currentIdx < this.displayItems.length - 1) this.currentIdx++;
+                    if (this.activeTab === 'wishes') {
+                        if (this.viewingID) {
+                            db.ref(`users/${this.myUID}/archive`).push({...item, fromFriend: this.viewingID}); 
+                        }
+                    db.ref(`users/${target}/wishes/${item.id}`).remove();
+                } else {
+                    db.ref(`users/${target}/archive/${item.id}`).remove();
                 }
-                this.isHolding = this.isDragging = this.isNearBtn = false;
-                this.moveX = 0;
+            } else if (Math.abs(this.moveX) > 80 && !this.isHolding) {
+                if (this.moveX > 0 && this.currentIdx > 0) this.currentIdx--;
+                else if (this.moveX < 0 && this.currentIdx < this.displayItems.length - 1) this.currentIdx++;
+            }
+
+
+            this.isHolding = false;
+            this.isDragging = false;
+            this.isNearBtn = false;
+            this.moveX = 0;
+            this.moveY = 0;
             },
 
             onPhoto(e) {
