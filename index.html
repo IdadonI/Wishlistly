@@ -304,15 +304,17 @@
             currentUser() { return this.users[this.viewingID || this.myUID]; }
         },
         mounted() {
+            // Слушаем входящие запросы на подтверждение
             db.ref(`users/${this.myUID}/requests`).on('child_added', (snapshot) => {
                 const req = { id: snapshot.key, ...snapshot.val() };
-            tg.showConfirm(
-                `Пользователь ${req.fromName} выполнил вашу хотелку: "${req.wishTitle}"?`,
-                (isConfirmed) => {
+                tg.showConfirm(
+                    `Пользователь ${req.fromName} выполнил вашу хотелку: "${req.wishTitle}"?`,
+                    (isConfirmed) => {
                         this.handleRequest(req, isConfirmed);
-                }
-            );
-        });
+                    }
+                );
+            });
+
             this.initAccount();
             this.sync();
             db.ref('users').on('value', s => this.users = s.val() || {});
@@ -344,6 +346,7 @@
             async handleRequest(req, approved) {
                 const reqRef = db.ref(`users/${this.myUID}/requests/${req.id}`);
                 if (approved) {
+                    // Если пользователь подтвердил ("Да"), удаляем карточку из его списка
                     await db.ref(`users/${this.myUID}/wishes/${req.wishId}`).remove();
                     this.haptic('success');
                     tg.showAlert(`Отлично! Хотелка "${req.wishTitle}" выполнена.`);
@@ -451,40 +454,41 @@
                 const items = this.displayItems;
                 const item = items[this.currentIdx];
 
+                // Логика когда карточка зажата и поднесена к кнопке
                 if (this.isHolding && this.isNearBtn) {
                     if (!this.viewingID) {
+                        // Удаление собственной карточки
                         db.ref(`users/${this.myUID}/wishes/${item.id}`).remove();
                         this.haptic('success');
                         if (this.currentIdx >= items.length - 1 && this.currentIdx > 0) this.currentIdx--;
                     } else {
-                        db.ref(`users/${this.myUID}/wishes`).push({
-                            ownerId: this.myUID,
-                            title: item.title,
-                            image: item.image,
-                            fromFriend: this.users[this.viewingID].name 
-                        });
-                        this.haptic('success');
-                        tg.showScanQrPopup({ text: "Добавлено в ваши хотелки!" }); 
-                        setTimeout(() => tg.closeScanQrPopup(), 1000);
-                    }
-                } 
-                else if (!this.isHolding) {
-                    if (this.viewingID) {
+                        // Отправка запроса другу на подтверждение выполнения
                         const ownerId = this.viewingID;
-                        const wishId = item.id;
-                        const wishTitle = item.title;
                         db.ref(`users/${ownerId}/requests`).push({
                             fromId: this.myUID,
                             fromName: tg.initDataUnsafe?.user?.first_name || 'Друг',
-                            wishId: wishId,
-                            wishTitle: wishTitle,
+                            wishId: item.id,
+                            wishTitle: item.title,
                             timestamp: Date.now()
                         });
-    
                         this.haptic('success');
                         tg.showAlert("Запрос отправлен! Владелец должен подтвердить выполнение.");
-                        }
+                    }
+                } 
+                // Обычный свайп (без зажатия) для навигации
+                else if (!this.isHolding) {
+                    if (this.moveX > 60 && this.currentIdx > 0) {
+                        this.currentIdx--;
+                        this.haptic('light');
+                    } else if (this.moveX < -60 && this.currentIdx < items.length - 1) {
+                        this.currentIdx++;
+                        this.haptic('light');
+                    }
                 }
+                
+                // Сброс состояний
+                this.isHolding = this.isDragging = this.isNearBtn = false;
+                this.moveX = this.moveY = 0;
             },
 
             onPhoto(e) {
