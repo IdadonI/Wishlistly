@@ -244,7 +244,14 @@
             </button>
         </div>
 
-        <div style="width:55px;"></div>
+        <button v-if="!isHolding && displayItems.length > 0" @click="shareProfile" class="btn-ui">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path>
+                <polyline points="16 6 12 2 8 6"></polyline>
+                <line x1="12" y1="2" x2="12" y2="15"></line>
+            </svg>
+        </button>
+        <div v-else style="width:55px;"></div>
     </footer>
 
     <transition name="fade">
@@ -419,7 +426,7 @@
                     this.viewingID = friendUID;
                     this.currentIdx = 0;
                     this.sync();
-                    this.closeFriendsModal(); // Используем метод с анимацией
+                    this.closeFriendsModal(); 
                     this.searchUsername = '';
                     this.haptic('success');
                 } else {
@@ -438,6 +445,17 @@
                 this.haptic();
                 if (this.viewingID) { this.viewingID = null; this.currentIdx = 0; this.sync(); }
                 else { this.showAddModal = true; }
+            },
+
+            shareProfile() {
+                this.haptic('light');
+                let text = "";
+                if (this.viewingID && this.currentUser) {
+                    text = `Посмотри хотелки ${this.currentUser.name}! 🎁`;
+                } else {
+                    text = "Посмотри мои хотелки! 😇";
+                }
+                tg.switchInlineQuery(text, ['users']);
             },
 
             getCardClass(index) {
@@ -557,7 +575,7 @@
                     title: this.newTitle, 
                     image: this.newImg 
                 });
-                this.closeAddModal(); // Закрываем с анимацией
+                this.closeAddModal(); 
                 this.newTitle = ''; 
                 this.newImg = null;
                 this.currentIdx = 0;
