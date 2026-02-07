@@ -449,13 +449,16 @@
 
             shareProfile() {
                 this.haptic('light');
-                let text = "";
-                if (this.viewingID && this.currentUser) {
-                    text = `Посмотри хотелки ${this.currentUser.name}! 🎁`;
-                } else {
-                    text = "Посмотри мои хотелки! 😇";
-                }
-                tg.switchInlineQuery(text, ['users']);
+                const botLink = "https://t.me/Wishlistly_bot";
+                const text = "Посмотри мои хотелки! 😇";
+                
+                // Добавляем deep link (ID пользователя), если он есть
+                const shareUrl = this.myUsername 
+                    ? `${botLink}?start=${this.myUsername}`
+                    : botLink;
+
+                const finalLink = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(text)}`;
+                tg.openTelegramLink(finalLink);
             },
 
             getCardClass(index) {
