@@ -304,6 +304,15 @@
             currentUser() { return this.users[this.viewingID || this.myUID]; }
         },
         mounted() {
+            db.ref(`users/${this.myUID}/requests`).on('child_added', (snapshot) => {
+                const req = { id: snapshot.key, ...snapshot.val() };
+            tg.showConfirm(
+                `Пользователь ${req.fromName} выполнил вашу хотелку: "${req.wishTitle}"?`,
+                (isConfirmed) => {
+                        this.handleRequest(req, isConfirmed);
+                }
+            );
+        });
             this.initAccount();
             this.sync();
             db.ref('users').on('value', s => this.users = s.val() || {});
@@ -330,6 +339,19 @@
                     const d = s.val() || {};
                     this.wishes = Object.keys(d).map(k => ({id: k, ...d[k]})).reverse();
                 });
+            },
+
+            async handleRequest(req, approved) {
+                const reqRef = db.ref(`users/${this.myUID}/requests/${req.id}`);
+                if (approved) {
+                    await db.ref(`users/${this.myUID}/wishes/${req.wishId}`).remove();
+                    this.haptic('success');
+                    tg.showAlert(`Отлично! Хотелка "${req.wishTitle}" выполнена.`);
+                } else {
+                    this.haptic('warning');
+                    tg.showAlert("Вы отклонили выполнение.");
+                }
+                reqRef.remove();
             },
 
             async searchFriend(savedName = null) {
@@ -447,16 +469,22 @@
                     }
                 } 
                 else if (!this.isHolding) {
-                    if (this.moveX > 60 && this.currentIdx > 0) {
-                        this.currentIdx--;
-                        this.haptic('light');
-                    } else if (this.moveX < -60 && this.currentIdx < items.length - 1) {
-                        this.currentIdx++;
-                        this.haptic('light');
-                    }
+                    if (this.viewingID) {
+                        const ownerId = this.viewingID;
+                        const wishId = item.id;
+                        const wishTitle = item.title;
+                        db.ref(`users/${ownerId}/requests`).push({
+                            fromId: this.myUID,
+                            fromName: tg.initDataUnsafe?.user?.first_name || 'Друг',
+                            wishId: wishId,
+                            wishTitle: wishTitle,
+                            timestamp: Date.now()
+                        });
+    
+                        this.haptic('success');
+                        tg.showAlert("Запрос отправлен! Владелец должен подтвердить выполнение.");
+                        }
                 }
-                this.isHolding = this.isDragging = this.isNearBtn = false;
-                this.moveX = this.moveY = 0;
             },
 
             onPhoto(e) {
