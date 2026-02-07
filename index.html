@@ -46,6 +46,33 @@
 
         #app { width: 100%; height: 100%; display: flex; flex-direction: column; }
 
+        .recent-container { margin-bottom: 25px; width: 100%; }
+        .section-label { 
+            font-size: 11px; color: var(--tg-hint); margin-bottom: 12px; 
+            text-transform: uppercase; letter-spacing: 1.2px; font-weight: 600; 
+        }
+
+        .recent-list { display: flex; flex-direction: column; gap: 8px; max-height: 200px; overflow-y: auto; }
+
+        .recent-item {
+            display: flex; align-items: center; justify-content: space-between;
+            background: rgba(255,255,255,0.05); padding: 10px 14px;
+            border-radius: 18px; transition: 0.2s;
+        }
+        .recent-item:active { background: rgba(255,255,255,0.1); transform: scale(0.98); }
+
+        .recent-user-info { display: flex; align-items: center; gap: 12px; }
+        .recent-avatar { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; }
+
+        .recent-text { display: flex; flex-direction: column; }
+        .recent-name { font-size: 15px; font-weight: 600; color: #fff; }
+        .recent-username { font-size: 13px; color: var(--tg-hint); }
+
+        .recent-remove { 
+            padding: 8px; color: var(--tg-hint); opacity: 0.6; 
+            display: flex; align-items: center; justify-content: center;
+        }
+
         .btn-main.near-trash {
             background-color: var(--danger) !important;
             color: #fff !important;
@@ -207,14 +234,20 @@
                 <input v-model="searchUsername" type="text" placeholder="@username_друга" @keyup.enter="searchFriend()">
             </div>
             
-            <div v-if="recentSearches.length > 0" style="margin-bottom: 20px;">
-                <p style="font-size: 12px; color: var(--tg-hint); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px;">Недавние</p>
-                <div style="display: flex; gap: 15px; overflow-x: auto; padding-bottom: 10px;">
-                    <div v-for="user in recentSearches" :key="user.uid" @click="searchFriend(user.username)" style="display: flex; flex-direction: column; align-items: center; gap: 5px; min-width: 65px;">
-                        <img :src="user.photo" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 1px solid rgba(255,255,255,0.1);">
-                        <span style="font-size: 10px; color: var(--tg-text); text-align: center; width: 65px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                            {{ user.name }}
-                        </span>
+            <div v-if="recentSearches.length > 0" class="recent-container">
+                <p class="section-label">Недавние поиски</p>
+                <div class="recent-list">
+                    <div v-for="user in recentSearches" :key="user.uid" class="recent-item" @click="searchFriend(user.username)">
+                        <div class="recent-user-info">
+                            <img :src="user.photo" class="recent-avatar">
+                            <div class="recent-text">
+                                <span class="recent-name">{{ user.name }}</span>
+                                <span class="recent-username">@{{ user.username }}</span>
+                            </div>
+                        </div>
+                        <div class="recent-remove" @click.stop="removeFromHistory(user.uid)">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -472,6 +505,12 @@
                     };
                 };
                 r.readAsDataURL(f);
+            },
+
+            removeFromHistory(uid) {
+                this.haptic('light');
+                this.recentSearches = this.recentSearches.filter(u => u.uid !== uid);
+                localStorage.setItem('recent_history', JSON.stringify(this.recentSearches));
             },
 
             save() {
