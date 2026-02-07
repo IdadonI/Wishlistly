@@ -76,19 +76,8 @@
         .btn-main.near-trash {
             background-color: var(--danger) !important;
             color: #fff !important;
-            transform: scale(1.1) !important;
+            transform: scale(1.2) !important; /* Увеличивается только корзина */
             box-shadow: 0 0 30px rgba(255, 59, 48, 0.5);
-        }
-
-        .wish-card {
-            position: absolute; 
-            width: 88vw; height: 120vw; max-width: 350px; max-height: 500px;
-            border-radius: 35px; background: var(--tg-sec-bg);
-            border: 1px solid rgba(255,255,255,0.08);
-            box-shadow: 0 30px 60px rgba(0,0,0,0.5);
-            transform-origin: bottom center;
-            transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.4s;
-            will-change: transform;
         }
 
         .glass-overlay { 
@@ -107,15 +96,17 @@
         .header-info h1 { margin: 0; font-size: 16px; font-weight: 700; }
         .header-info p { margin: 0; font-size: 12px; color: var(--tg-hint); }
 
-        main { flex: 1; position: relative; display: flex; align-items: center; justify-content: center; perspective: 1000px; touch-action: none; }
+        main { flex: 1; position: relative; display: flex; align-items: center; justify-content: center; perspective: 1200px; touch-action: none; }
         
         .wish-card {
-            position: absolute; width: 88vw; height: 120vw; max-width: 350px; max-height: 500px;
+            position: absolute; 
+            width: 88vw; height: 120vw; max-width: 320px; max-height: 460px;
             border-radius: 35px; background: var(--tg-sec-bg);
             border: 1px solid rgba(255,255,255,0.08);
-            box-shadow: 0 30px 60px rgba(0,0,0,0.5);
-            transition: transform 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.4s;
-            will-change: transform;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+            transition: transform 0.6s cubic-bezier(0.23, 1, 0.32, 1), opacity 0.5s ease;
+            transform-origin: center bottom; 
+            will-change: transform, opacity;
         }
         .card-inner { width: 100%; height: 100%; border-radius: 34px; overflow: hidden; position: relative; }
         .card-inner img { width: 100%; height: 100%; object-fit: cover; }
@@ -124,11 +115,13 @@
             position: absolute; bottom: 0; left: 0; right: 0; padding: 40px 25px 25px;
             background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, transparent 100%);
         }
-        .card-label h2 { margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -0.5px; }
+        .card-label h2 { margin: 0; font-size: 24px; font-weight: 800; color: #fff; }
 
-        .card-center { transform: scale(1) translateZ(0); z-index: 40; }
-        .card-next { transform: scale(0.85) translateY(15px); opacity: 0.4; z-index: 30; }
-        .card-prev { transform: scale(0.85) translateY(-15px); opacity: 0; z-index: 30; }
+        /* Состояния карточек из index */
+        .card-center { transform: translateX(0) translateZ(0) rotate(0deg); opacity: 1; z-index: 40; }
+        .card-left { transform: translateX(-85%) translateZ(-200px) rotate(-15deg); opacity: 0.2; z-index: 20; }
+        .card-right { transform: translateX(85%) translateZ(-200px) rotate(15deg); opacity: 0.2; z-index: 20; }
+        .card-hidden { transform: translateZ(-500px) scale(0.5); opacity: 0; pointer-events: none; }
 
         footer { height: 130px; display: flex; justify-content: space-around; align-items: center; padding: 0 30px 20px; z-index: 100; }
 
@@ -141,10 +134,6 @@
 
         .btn-main { width: 75px; height: 75px; background: white; color: black; box-shadow: 0 15px 30px rgba(0,0,0,0.2); }
         
-        .status-btn { position: absolute; left: 50%; margin-left: -27px; background: var(--danger); transform: scale(0); opacity: 0; }
-        .is-holding .status-btn { transform: translateX(-95px) scale(1); opacity: 1; }
-        .is-holding .btn-main { transform: translateX(20px); }
-
         .modal-overlay { 
             position: fixed; inset: 0; background: rgba(0,0,0,0.85); 
             backdrop-filter: blur(15px); z-index: 2000; 
@@ -185,7 +174,7 @@
         </div>
     </header>
 
-    <main @touchstart="handleStart" @touchmove="handleMove" @touchend="handleEnd">
+    <main @touchstart.prevent="handleStart" @touchmove.prevent="handleMove" @touchend.prevent="handleEnd">
         <div v-for="(item, index) in displayItems" :key="item.id"
             class="wish-card" :class="getCardClass(index)"
             :style="getDraggingStyle(index)">
@@ -377,7 +366,7 @@
 
             handleMainAction() {
                 this.haptic();
-                if (this.viewingID) { this.viewingID = null; this.sync(); }
+                if (this.viewingID) { this.viewingID = null; this.currentIdx = 0; this.sync(); }
                 else { this.showAddModal = true; }
             },
 
@@ -389,63 +378,40 @@
 
             getCardClass(index) {
                 if (index === this.currentIdx) return 'card-center';
-                return '';
+                if (index === this.currentIdx - 1) return 'card-left';
+                if (index === this.currentIdx + 1) return 'card-right';
+                return 'card-hidden';
             },
 
-            getDraggingStyle(index) {    
-            if (index < this.currentIdx) {
-                return {
-                    transform: 'translateY(-120%) scale(0.8) rotate(-20deg)',
-                    opacity: 0,
-                    zIndex: 0,
-                    pointerEvents: 'none'
-                };
-            }
-
-            if (index === this.currentIdx) {
-                if (this.isDragging) {
-                    return {
-                        transform: `translate3d(${this.moveX}px, ${this.moveY}px, 0) rotate(${this.moveX / 15}deg)`,
-                        transition: 'none', 
-                        zIndex: 100
-                    };
-                }
-                return { zIndex: 100, transform: 'translate3d(0,0,0) rotate(0deg)' };
-            }           
-
-            if (index > this.currentIdx) {
-                const diff = index - this.currentIdx;         
-                if (diff > 2) return { opacity: 0, pointerEvents: 'none' };
-                const rotateStep = 4; 
-                const translateYStep = 12; 
-                const scaleStep = 0.04;  
-                return {
-                    transform: `rotate(${diff * rotateStep}deg) translateY(${diff * translateYStep}px) scale(${1 - diff * scaleStep})`,
-                    opacity: 1 - diff * 0.2, 
-                    zIndex: 100 - diff,     
-                    pointerEvents: 'none'
-                };
-            }
-        },  
+            getDraggingStyle(index) {   
+                if (index !== this.currentIdx || !this.isDragging) return {};
+                return { 
+                    transform: `translate3d(${this.moveX}px, ${this.moveY}px, 100px) rotate(${this.moveX/10}deg)`,
+                    transition: 'none',
+                    zIndex: 1000
+            };
+        }, 
 
             handleStart(e) {
                 if (!this.displayItems[this.currentIdx]) return;
-                this.startX = e.touches[0].clientX;
-                this.startY = e.touches[0].clientY; 
+                const p = e.touches[0];
+                this.startX = p.clientX;
+                this.startY = p.clientY; 
+                this.isDragging = true;
+    
                 this.holdTimer = setTimeout(() => {
                     this.isHolding = true; 
-                    this.isDragging = true; 
-                    this.haptic('heavy');
-                }, 400);
+                    this.haptic('medium');
+                }, 200);
             },
 
             handleMove(e) {
+                if (!this.isDragging) return;
                 const p = e.touches[0];
                 this.moveX = p.clientX - this.startX;
                 this.moveY = p.clientY - this.startY;
 
-                if (!this.isHolding && Math.abs(this.moveX) > 10) {
-                    clearTimeout(this.holdTimer); }
+                if (Math.abs(this.moveX) > 15) clearTimeout(this.holdTimer);
 
                 if (this.isHolding) {
                     const btn = document.querySelector('.btn-main');
@@ -454,38 +420,44 @@
                         const btnCenterX = rect.left + rect.width / 2;
                         const btnCenterY = rect.top + rect.height / 2;
                         const dist = Math.hypot(p.clientX - btnCenterX, p.clientY - btnCenterY);
-                        this.isNearBtn = dist < 80;
+                        this.isNearBtn = dist < 70;
                     }
                 }
             },
 
             handleEnd() {
                 clearTimeout(this.holdTimer);
+                if (!this.isDragging) return;
+
                 const items = this.displayItems;
                 const item = items[this.currentIdx];
-                const target = this.viewingID || this.myUID;
+
                 if (this.isHolding && this.isNearBtn) {
                     if (!this.viewingID) {
+                        const path = this.activeTab === 'wishes' ? 'wishes' : 'archive';
+                        db.ref(`users/${this.myUID}/${path}/${item.id}`).remove();
                         this.haptic('success');
-                        let nextIdx = this.currentIdx;
-                        if (this.currentIdx > 0) {
-                            nextIdx = this.currentIdx - 1;
+                        
+                        // Автоматический сброс индекса, если удалили последнюю карточку
+                        if (this.currentIdx >= items.length - 1 && this.currentIdx > 0) {
+                            this.currentIdx--;
                         }
-                        if (this.activeTab === 'wishes') {
-                            db.ref(`users/${this.myUID}/wishes/${item.id}`).remove();
-                        } else {
-                        db.ref(`users/${this.myUID}/archive/${item.id}`).remove();
-                        }
-                        this.currentIdx = nextIdx;
                     } else {
                         this.haptic('error');
                         tg.showAlert("Вы не можете удалять чужие хотелки!");
                     }
                 } 
-                else if (Math.abs(this.moveX) > 80 && !this.isHolding) {
-                    if (this.moveX > 0 && this.currentIdx > 0) this.currentIdx--;
-                    else if (this.moveX < 0 && this.currentIdx < items.length - 1) this.currentIdx++;
+                else if (!this.isHolding) {
+                    // Листание
+                    if (this.moveX > 60 && this.currentIdx > 0) {
+                        this.currentIdx--;
+                        this.haptic('light');
+                    } else if (this.moveX < -60 && this.currentIdx < items.length - 1) {
+                        this.currentIdx++;
+                        this.haptic('light');
+                    }
                 }
+
                 this.isHolding = this.isDragging = this.isNearBtn = false;
                 this.moveX = this.moveY = 0;
             },
