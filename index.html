@@ -10,6 +10,22 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
     
     <style>
+        * {
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
+        }
+
+        input, textarea {
+            -webkit-user-select: text;
+            user-select: text;
+        }
+        
+        img {
+            -webkit-user-drag: none;
+            pointer-events: none;
+        }
+
         :root {
             --tg-bg: var(--tg-theme-bg-color, #000);
             --tg-sec-bg: var(--tg-theme-secondary-bg-color, #1c1c1e);
@@ -164,17 +180,14 @@
 
         <div style="position:relative; display:flex; align-items:center;">
             <button class="btn-ui btn-main" 
-                    :class="{'near-trash': isNearBtn}"
+                    :class="{'near-trash': isNearBtn && !viewingID}"
                     @click="handleMainAction">
-            
-                <svg v-if="isHolding" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <svg v-if="isHolding && !viewingID" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                     <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
                 </svg>
-            
                 <svg v-else-if="viewingID" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
                     <polyline points="15 18 9 12 15 6"></polyline>
                 </svg>
-            
                 <svg v-else width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
                     <line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line>
                 </svg>
@@ -369,7 +382,7 @@
 
             if (index > this.currentIdx) {
                 const diff = index - this.currentIdx;         
-                if (diff > 3) return { opacity: 0, pointerEvents: 'none' };
+                if (diff > 2) return { opacity: 0, pointerEvents: 'none' };
                 const rotateStep = 4; 
                 const translateYStep = 12; 
                 const scaleStep = 0.04;  
@@ -415,30 +428,33 @@
 
             handleEnd() {
                 clearTimeout(this.holdTimer);
-                const item = this.displayItems[this.currentIdx];
+                const items = this.displayItems;
+                const item = items[this.currentIdx];
                 const target = this.viewingID || this.myUID;
-
                 if (this.isHolding && this.isNearBtn) {
-                    this.haptic('success');
-                    if (this.activeTab === 'wishes') {
-                        if (this.viewingID) {
-                            db.ref(`users/${this.myUID}/archive`).push({...item, fromFriend: this.viewingID}); 
+                    if (!this.viewingID) {
+                        this.haptic('success');
+                        let nextIdx = this.currentIdx;
+                        if (this.currentIdx > 0) {
+                            nextIdx = this.currentIdx - 1;
                         }
-                    db.ref(`users/${target}/wishes/${item.id}`).remove();
-                } else {
-                    db.ref(`users/${target}/archive/${item.id}`).remove();
+                        if (this.activeTab === 'wishes') {
+                            db.ref(`users/${this.myUID}/wishes/${item.id}`).remove();
+                        } else {
+                        db.ref(`users/${this.myUID}/archive/${item.id}`).remove();
+                        }
+                        this.currentIdx = nextIdx;
+                    } else {
+                        this.haptic('error');
+                        tg.showAlert("Вы не можете удалять чужие хотелки!");
+                    }
+                } 
+                else if (Math.abs(this.moveX) > 80 && !this.isHolding) {
+                    if (this.moveX > 0 && this.currentIdx > 0) this.currentIdx--;
+                    else if (this.moveX < 0 && this.currentIdx < items.length - 1) this.currentIdx++;
                 }
-            } else if (Math.abs(this.moveX) > 80 && !this.isHolding) {
-                if (this.moveX > 0 && this.currentIdx > 0) this.currentIdx--;
-                else if (this.moveX < 0 && this.currentIdx < this.displayItems.length - 1) this.currentIdx++;
-            }
-
-
-            this.isHolding = false;
-            this.isDragging = false;
-            this.isNearBtn = false;
-            this.moveX = 0;
-            this.moveY = 0;
+                this.isHolding = this.isDragging = this.isNearBtn = false;
+                this.moveX = this.moveY = 0;
             },
 
             onPhoto(e) {
@@ -460,8 +476,15 @@
 
             save() {
                 if (!this.newTitle || !this.newImg) return;
-                db.ref(`users/${this.myUID}/wishes`).push({ ownerId: this.myUID, title: this.newTitle, image: this.newImg });
-                this.showAddModal = false; this.newTitle = ''; this.newImg = null;
+                db.ref(`users/${this.myUID}/wishes`).push({ 
+                    ownerId: this.myUID, 
+                    title: this.newTitle, 
+                    image: this.newImg 
+                });
+                this.showAddModal = false; 
+                this.newTitle = ''; 
+                this.newImg = null;
+                this.currentIdx = 0;
                 this.haptic('success');
             }
         }
