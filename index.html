@@ -63,13 +63,16 @@
             }
 
         @keyframes checkCross {
-            0%, 45% { transform: scale(1) rotate(0deg); opacity: 1; }
-            50% { transform: scale(0) rotate(90deg); opacity: 0; }
-            55%, 100% { transform: scale(1) rotate(0deg); opacity: 1; }
+            0%, 40% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(0); opacity: 0; } 
+            60%, 100% { transform: scale(1); opacity: 1; } 
         }
 
         .animate-icon {
-            animation: checkCross 3s infinite alternate ease-in-out;
+            animation: checkCross 3s infinite ease-in-out;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         :root {
@@ -352,8 +355,12 @@
                 <img :src="currentUser?.photo" class="alert-avatar friend">
                 <div class="alert-badge">
                     <div class="animate-icon">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="4">
+                        <svg v-if="alertIconTick" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="4">
                             <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                        <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="4">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
                         </svg>
                     </div>
                 </div>
@@ -399,7 +406,9 @@
                 isHolding: false, isDragging: false, isNearBtn: false,
                 startX: 0, startY: 0, moveX: 0, moveY: 0, holdTimer: null,
                 recentSearches: JSON.parse(localStorage.getItem('recent_history') || '[]'),
-                customAlert: { show: false, message: '' }
+                customAlert: { show: false, message: '' },
+                alertIconTick: true,
+                iconInterval: null,
             }
         },
         computed: {
@@ -423,12 +432,6 @@
         },
         methods: {
             haptic(s) { try { tg.HapticFeedback.impactOccurred(s || 'medium'); } catch(e){} },
-            
-            showNiceAlert(msg) {
-                this.customAlert.message = msg;
-                this.customAlert.show = true;
-                this.haptic('light');
-            },
             
             closeFriendsModal() {
                 this.isFriendsClosing = true;
@@ -580,6 +583,21 @@
                         this.isNearBtn = dist < 70;
                     }
                 }
+            },
+
+            showNiceAlert(msg) {
+                this.customAlert.message = msg;
+                this.customAlert.show = true;
+                this.haptic('light');
+                this.alertIconTick = true;
+                if (this.iconInterval) clearInterval(this.iconInterval);
+                this.iconInterval = setInterval(() => {
+                    if (this.customAlert.show) {
+                        this.alertIconTick = !this.alertIconTick;
+                    } else {
+                        clearInterval(this.iconInterval);
+                    }
+                }, 1500); 
             },
 
             handleEnd() {
