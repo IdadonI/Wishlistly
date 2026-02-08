@@ -257,6 +257,43 @@
         }
 
         [v-cloak] { display: none; }
+
+        @media (prefers-color-scheme: light) {
+        :root {
+            --tg-bg: var(--tg-theme-bg-color, #ffffff);
+            --tg-sec-bg: var(--tg-theme-secondary-bg-color, #f1f1f2);
+            --tg-text: var(--tg-theme-text-color, #000000);
+            --tg-hint: var(--tg-theme-hint-color, #8e8e93);
+            --accent: #000; /* На светлой теме делаем акцент темным */
+        }
+
+        .btn-main {
+            background: #000 !important;
+            color: #fff !important;
+        }
+
+        .card-label h2 {
+            color: #fff !important;
+        }
+
+        main div[style*="opacity:0.2"] {
+            color: var(--tg-text);
+            opacity: 0.4 !important;
+        }
+
+        input {
+            background: rgba(0, 0, 0, 0.05);
+            color: #000;
+        }
+    
+        .recent-item {
+            background: rgba(0, 0, 0, 0.05);
+        }
+    
+        .recent-name {
+            color: #000;
+        }
+    }
     </style>
 </head>
 <body>
