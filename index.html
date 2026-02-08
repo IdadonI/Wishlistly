@@ -26,6 +26,52 @@
             pointer-events: none;
         }
 
+        .alert-avatars {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+
+        .alert-avatar {
+            width: 65px;
+            height: 65px;
+            border-radius: 50%;
+            border: 3px solid var(--tg-sec-bg);
+            object-fit: cover;
+            background: #333;
+        }
+
+        .alert-avatar.friend {
+            margin-left: -20px; 
+        }
+
+        .alert-badge {
+            position: absolute;
+            bottom: -5px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #fff;
+            border-radius: 50%;
+            width: 26px;
+            height: 26px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            }
+
+        @keyframes checkCross {
+            0%, 45% { transform: scale(1) rotate(0deg); opacity: 1; }
+            50% { transform: scale(0) rotate(90deg); opacity: 0; }
+            55%, 100% { transform: scale(1) rotate(0deg); opacity: 1; }
+        }
+
+        .animate-icon {
+            animation: checkCross 3s infinite alternate ease-in-out;
+        }
+
         :root {
             --tg-bg: var(--tg-theme-bg-color, #000);
             --tg-sec-bg: var(--tg-theme-secondary-bg-color, #1c1c1e);
@@ -299,20 +345,26 @@
     </transition>
 
     <transition name="fade">
-        <div v-if="customAlert.show" class="modal-overlay" style="z-index: 3000;">
-            <div class="modal-content" style="border-radius: 24px; text-align: center; padding: 25px; width: 80%; max-width: 300px; margin-bottom: auto; margin-top: auto; transform: none; animation: none;">
-                <div style="position: relative; margin-bottom: 20px; display: flex; justify-content: center; align-items: center;">
-                    <div style="width: 60px; height: 60px; background: #333; border-radius: 50%;"></div>
-                    <div style="width: 60px; height: 60px; background: #333; border-radius: 50%; margin-left: -15px;"></div>
-                    <div style="position: absolute; bottom: -5px; background: #fff; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center;">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="4"><polyline points="20 6 9 17 4 12"></polyline></svg>
+    <div v-if="customAlert.show" class="modal-overlay" style="z-index: 3000;">
+        <div class="modal-content" style="border-radius: 35px; text-align: center; padding: 35px 25px; width: 85%; max-width: 320px; margin: auto;">
+            <div class="alert-avatars">
+                <img :src="users[myUID]?.photo" class="alert-avatar">
+                <img :src="currentUser?.photo" class="alert-avatar friend">
+                <div class="alert-badge">
+                    <div class="animate-icon">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="4">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
                     </div>
                 </div>
-                <p style="font-size: 16px; font-weight: 500; margin-bottom: 20px; line-height: 1.4;">{{ customAlert.message }}</p>
-                <button class="btn-primary" @click="customAlert.show = false" style="background: rgba(255,255,255,0.1); padding: 12px; border-radius: 14px;">OK</button>
             </div>
+            <p style="font-size: 17px; font-weight: 600; margin-bottom: 25px; line-height: 1.4; color: #fff;">
+                {{ customAlert.message }}
+            </p>
+            <button class="btn-primary" @click="customAlert.show = false">OK</button>
         </div>
-    </transition>
+    </div>
+</transition>
 </div>
 
 <script>
