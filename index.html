@@ -60,21 +60,26 @@
             align-items: center;
             justify-content: center;
             box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-            }
-
-        @keyframes checkCross {
-            0% { transform: scale(0) rotate(-45deg); opacity: 0; }
-            20%, 45% { transform: scale(1) rotate(0deg); opacity: 1; }
-            50% { transform: scale(0); opacity: 0; } 
-            55%, 80% { transform: scale(1) rotate(0deg); opacity: 1; }
-            100% { transform: scale(0) rotate(-45deg); opacity: 0; }
         }
 
-        .animate-icon {
-            animation: checkCross 2s infinite ease-in-out;
+        .icon-wrapper {
             display: flex;
             align-items: center;
             justify-content: center;
+        }
+
+        .icon-flip-enter-active, .icon-flip-leave-active {
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .icon-flip-leave-to {
+            transform: scale(0) rotate(-45deg);
+            opacity: 0;
+        }
+
+        .icon-flip-enter-from {
+            transform: scale(0) rotate(45deg);
+            opacity: 0;
         }
 
         :root {
@@ -356,20 +361,21 @@
                 <img :src="users[myUID]?.photo" class="alert-avatar">
                 <img :src="currentUser?.photo" class="alert-avatar friend">
                 <div class="alert-badge">
-                    <div class="animate-icon">
-                        <svg v-if="alertIconTick" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="4">
-                            <polyline points="20 6 9 17 4 12"></polyline>
-                        </svg>
-                        <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="4">
-                            <line x1="18" y1="6" x2="6" y2="18"></line>
-                            <line x1="6" y1="6" x2="18" y2="18"></line>
-                        </svg>
+                    <transition name="icon-flip" mode="out-in">
+                        <div :key="alertIconTick" class="icon-wrapper">
+                            <svg v-if="alertIconTick" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="4">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                            <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="4">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
+                        </div>
                     </div>
                 </div>
-            </div>
-            <p style="font-size: 17px; font-weight: 600; margin-bottom: 25px; line-height: 1.4; color: #fff;">
-                {{ customAlert.message }}
-            </p>
+                <p style="font-size: 17px; font-weight: 600; margin-bottom: 25px; line-height: 1.4; color: #fff;">
+                    {{ customAlert.message }}
+                </p>
             <button class="btn-primary" @click="customAlert.show = false">OK</button>
         </div>
     </div>
@@ -591,7 +597,7 @@
                 this.customAlert.message = msg;
                 this.customAlert.show = true;
                 this.haptic('light');
-                this.alertIconTick = true;
+                this.alertIconTick = true; 
                 if (this.iconInterval) clearInterval(this.iconInterval);
                 this.iconInterval = setInterval(() => {
                     if (this.customAlert.show) {
@@ -599,7 +605,7 @@
                     } else {
                         clearInterval(this.iconInterval);
                     }
-                }, 2000); 
+                }, 1600);
             },
 
             handleEnd() {
