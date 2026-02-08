@@ -102,7 +102,6 @@
 
         #app { width: 100%; height: 100%; display: flex; flex-direction: column; }
 
-        /* --- Анимации модальных окон --- */
         .fade-enter-active, .fade-leave-active {
             transition: opacity 0.3s ease;
         }
@@ -128,7 +127,6 @@
         .modal-content.closing {
             animation: slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
-        /* ------------------------------ */
 
         .recent-container { margin-bottom: 25px; width: 100%; }
         .section-label { 
@@ -240,6 +238,22 @@
         .btn-primary { 
             background: var(--tg-link); color: white; padding: 18px; border-radius: 20px; 
             border: none; font-weight: 700; width: 100%; font-size: 16px;
+        }
+
+        .alert-buttons {
+            display: flex;
+            gap: 12px;
+            width: 100%;
+        }
+        .btn-secondary {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            padding: 18px;
+            border-radius: 20px;
+            border: none;
+            font-weight: 700;
+            width: 100%;
+            font-size: 16px;
         }
 
         [v-cloak] { display: none; }
@@ -355,31 +369,48 @@
     </transition>
 
     <transition name="fade">
-    <div v-if="customAlert.show" class="modal-overlay" style="z-index: 3000;">
-        <div class="modal-content" style="border-radius: 35px; text-align: center; padding: 35px 25px; width: 85%; max-width: 320px; margin: auto;">
-            <div class="alert-avatars">
-                <img :src="users[myUID]?.photo" class="alert-avatar">
-                <img :src="currentUser?.photo" class="alert-avatar friend">
-                <div class="alert-badge">
-                    <transition name="icon-flip" mode="out-in">
-                        <div :key="alertIconTick" class="icon-wrapper">
-                            <svg v-if="alertIconTick" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="4">
-                                <polyline points="20 6 9 17 4 12"></polyline>
-                            </svg>
-                            <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="4">
-                                <line x1="18" y1="6" x2="6" y2="18"></line>
-                                <line x1="6" y1="6" x2="18" y2="18"></line>
-                            </svg>
-                        </div>
+        <div v-if="customAlert.show" class="modal-overlay" style="z-index: 3000;">
+            <div class="modal-content" style="border-radius: 35px; text-align: center; padding: 35px 25px; width: 85%; max-width: 320px; margin: auto;">
+                <div class="alert-avatars">
+                    <template v-if="customAlert.senderPhoto">
+                        <img :src="customAlert.senderPhoto" class="alert-avatar" style="margin-left: 0; width: 80px; height: 80px;">
+                    </template>
+                    <template v-else>
+                        <img :src="users[myUID]?.photo" class="alert-avatar">
+                        <img :src="currentUser?.photo" class="alert-avatar friend">
+                    </template>
+                    
+                    <div class="alert-badge">
+                        <transition name="icon-flip" mode="out-in">
+                            <div :key="alertIconTick" class="icon-wrapper">
+                                <svg v-if="alertIconTick" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="4">
+                                    <polyline points="20 6 9 17 4 12"></polyline>
+                                </svg>
+                                <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="4">
+                                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                                </svg>
+                            </div>
+                        </transition>
                     </div>
                 </div>
+                
                 <p style="font-size: 17px; font-weight: 600; margin-bottom: 25px; line-height: 1.4; color: #fff;">
                     {{ customAlert.message }}
                 </p>
-            <button class="btn-primary" @click="customAlert.show = false">OK</button>
+
+                <div v-if="customAlert.senderPhoto" class="alert-buttons">
+                    <button class="btn-secondary" @click="customAlert.show = false; customAlert.onCancel && customAlert.onCancel(); customAlert.senderPhoto = null;">
+                        НЕТ
+                    </button>
+                    <button class="btn-primary" @click="customAlert.show = false; customAlert.onConfirm && customAlert.onConfirm(); customAlert.senderPhoto = null;">
+                        ДА
+                    </button>
+                </div>
+                <button v-else class="btn-primary" @click="customAlert.show = false">OK</button>
+            </div>
         </div>
-    </div>
-</transition>
+    </transition>
 </div>
 
 <script>
@@ -414,7 +445,7 @@
                 isHolding: false, isDragging: false, isNearBtn: false,
                 startX: 0, startY: 0, moveX: 0, moveY: 0, holdTimer: null,
                 recentSearches: JSON.parse(localStorage.getItem('recent_history') || '[]'),
-                customAlert: { show: false, message: '' },
+                customAlert: { show: false, message: '', senderPhoto: null, onConfirm: null, onCancel: null },
                 alertIconTick: true,
                 iconInterval: null,
             }
@@ -426,11 +457,14 @@
         mounted() {
             db.ref(`users/${this.myUID}/requests`).on('child_added', (snapshot) => {
                 const req = { id: snapshot.key, ...snapshot.val() };
-                tg.showConfirm(
+                const sender = this.users[req.fromId];
+                const senderPhoto = sender ? sender.photo : `https://ui-avatars.com/api/?name=${req.fromName}`;
+
+                this.showNiceAlert(
                     `Пользователь ${req.fromName} выполнил вашу хотелку: "${req.wishTitle}"?`,
-                    (isConfirmed) => {
-                        this.handleRequest(req, isConfirmed);
-                    }
+                    senderPhoto,
+                    () => { this.handleRequest(req, true); },
+                    () => { this.handleRequest(req, false); }
                 );
             });
 
@@ -483,10 +517,8 @@
                 if (approved) {
                     await db.ref(`users/${this.myUID}/wishes/${req.wishId}`).remove();
                     this.haptic('success');
-                    this.showNiceAlert(`Отлично! Хотелка "${req.wishTitle}" выполнена.`);
                 } else {
                     this.haptic('warning');
-                    tg.showAlert("Вы отклонили выполнение.");
                 }
                 reqRef.remove();
             },
@@ -593,9 +625,13 @@
                 }
             },
 
-            showNiceAlert(msg) {
+            showNiceAlert(msg, photo = null, onConfirm = null, onCancel = null) {
                 this.customAlert.message = msg;
+                this.customAlert.senderPhoto = photo;
+                this.customAlert.onConfirm = onConfirm;
+                this.customAlert.onCancel = onCancel;
                 this.customAlert.show = true;
+                
                 this.haptic('light');
                 this.alertIconTick = true; 
                 if (this.iconInterval) clearInterval(this.iconInterval);
