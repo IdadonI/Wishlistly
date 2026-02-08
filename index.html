@@ -257,40 +257,51 @@
         }
 
         [v-cloak] { display: none; }
+
         @media (prefers-color-scheme: light) {
         :root {
             --tg-bg: var(--tg-theme-bg-color, #ffffff);
-            --tg-sec-bg: var(--tg-theme-secondary-bg-color, #f1f1f2);
-            --tg-text: var(--tg-theme-text-color, #000000);
-            --tg-hint: var(--tg-theme-hint-color, #8e8e93);
-            --accent: #000; 
+            --tg-sec-bg: var(--tg-theme-secondary-bg-color, #efeff3);
+            --tg-text: var(--tg-theme-text-color, #222222);
+            --tg-hint: var(--tg-theme-hint-color, #707579);
         }
 
-        .btn-main {
-            background: #000 !important;
-            color: #fff !important;
+        .modal-content {
+        background: var(--tg-bg) !important;
+            }
+
+        .modal-content h2,
+        .modal-content p, 
+        .modal-content span,
+        .section-label,
+        .recent-name {
+            color: var(--tg-text) !important;
         }
 
-        .card-label h2 {
-            color: #fff !important;
-        }
-
-        main div[style*="opacity:0.2"] {
-            color: var(--tg-text);
-            opacity: 0.4 !important;
+        .recent-username,
+        .modal-content .card-label p {
+            color: var(--tg-hint) !important;
         }
 
         input {
-            background: rgba(0, 0, 0, 0.05);
-            color: #000;
+            background: var(--tg-sec-bg) !important;
+            color: var(--tg-text) !important;
+            border: 1px solid rgba(0, 0, 0, 0.1) !important;
         }
-    
-        .recent-item {
-            background: rgba(0, 0, 0, 0.05);
+
+        input::placeholder {
+            color: var(--tg-hint) !important;
+            opacity: 0.7;
         }
-    
-        .recent-name {
-            color: #000;
+
+        .btn-secondary {
+            background: var(--tg-sec-bg) !important;
+            color: var(--tg-text) !important;
+        }
+
+        .modal-content div[style*="height:250px"] {
+            background: var(--tg-sec-bg) !important;
+            border: 2px dashed rgba(0, 0, 0, 0.1) !important;
         }
     }
     </style>
