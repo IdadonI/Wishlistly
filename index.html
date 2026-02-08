@@ -69,7 +69,7 @@
         }
 
         .icon-flip-enter-active, .icon-flip-leave-active {
-            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
 
         .icon-flip-leave-to {
@@ -355,11 +355,7 @@
     </transition>
 
     <transition name="fade">
-        <div v-if="customAlert.isConfirm" style="display: flex; gap: 10px;">
-            <button class="btn-primary" style="background: var(--danger);" @click="handleRequest(customAlert.currentRequest, false); customAlert.show = false">НЕТ</button>
-            <button class="btn-primary" @click="handleRequest(customAlert.currentRequest, true); customAlert.show = false">ДА</button>
-        </div>
-        <button v-else class="btn-primary" @click="customAlert.show = false">OK</button>
+    <div v-if="customAlert.show" class="modal-overlay" style="z-index: 3000;">
         <div class="modal-content" style="border-radius: 35px; text-align: center; padding: 35px 25px; width: 85%; max-width: 320px; margin: auto;">
             <div class="alert-avatars">
                 <img :src="users[myUID]?.photo" class="alert-avatar">
@@ -418,7 +414,7 @@
                 isHolding: false, isDragging: false, isNearBtn: false,
                 startX: 0, startY: 0, moveX: 0, moveY: 0, holdTimer: null,
                 recentSearches: JSON.parse(localStorage.getItem('recent_history') || '[]'),
-                customAlert: { show: false, message: '', isConfirm: false, currentRequest: null },
+                customAlert: { show: false, message: '' },
                 alertIconTick: true,
                 iconInterval: null,
             }
@@ -427,28 +423,24 @@
             displayItems() { return this.wishes; },
             currentUser() { return this.users[this.viewingID || this.myUID]; }
         },
-
         mounted() {
+            db.ref(`users/${this.myUID}/requests`).on('child_added', (snapshot) => {
+                const req = { id: snapshot.key, ...snapshot.val() };
+                tg.showConfirm(
+                    `Пользователь ${req.fromName} выполнил вашу хотелку: "${req.wishTitle}"?`,
+                    (isConfirmed) => {
+                        this.handleRequest(req, isConfirmed);
+                    }
+                );
+            });
+
             this.initAccount();
             this.sync();
-            this.initRequestWatcher(); // Вызов функции, которую мы создали выше
             db.ref('users').on('value', s => this.users = s.val() || {});
         },
-
         methods: {
             haptic(s) { try { tg.HapticFeedback.impactOccurred(s || 'medium'); } catch(e){} },
             
-            initRequestWatcher() {
-                db.ref(`users/${this.myUID}/requests`).on('child_added', (snapshot) => {
-                    const req = { id: snapshot.key, ...snapshot.val() };
-                    this.showNiceAlert(
-                        `Пользователь ${req.fromName} утверждает, что выполнил: "${req.wishTitle}". Это так?`,
-                        true,
-                        req
-                    );
-                });
-            },
-
             closeFriendsModal() {
                 this.isFriendsClosing = true;
                 setTimeout(() => {
@@ -494,7 +486,7 @@
                     this.showNiceAlert(`Отлично! Хотелка "${req.wishTitle}" выполнена.`);
                 } else {
                     this.haptic('warning');
-                    this.showNiceAlert("Вы отклонили выполнение.");
+                    tg.showAlert("Вы отклонили выполнение.");
                 }
                 reqRef.remove();
             },
@@ -601,14 +593,11 @@
                 }
             },
 
-            showNiceAlert(msg, isConfirm = false, requestData = null) {
+            showNiceAlert(msg) {
                 this.customAlert.message = msg;
-                this.customAlert.isConfirm = isConfirm;
-                this.customAlert.currentRequest = requestData;
                 this.customAlert.show = true;
                 this.haptic('light');
                 this.alertIconTick = true; 
-                
                 if (this.iconInterval) clearInterval(this.iconInterval);
                 this.iconInterval = setInterval(() => {
                     if (this.customAlert.show) {
