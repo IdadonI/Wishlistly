@@ -63,13 +63,15 @@
             }
 
         @keyframes checkCross {
-            0%, 40% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(0); opacity: 0; } 
-            60%, 100% { transform: scale(1); opacity: 1; } 
+            0% { transform: scale(0) rotate(-45deg); opacity: 0; }
+            20%, 45% { transform: scale(1) rotate(0deg); opacity: 1; }
+            50% { transform: scale(0) rotate(45deg); opacity: 0; } /* Момент подмены */
+            55%, 80% { transform: scale(1) rotate(0deg); opacity: 1; }
+            100% { transform: scale(0) rotate(-45deg); opacity: 0; }
         }
 
         .animate-icon {
-            animation: checkCross 3s infinite ease-in-out;
+            animation: checkCross 4s infinite ease-in-out;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -597,7 +599,7 @@
                     } else {
                         clearInterval(this.iconInterval);
                     }
-                }, 1500); 
+                }, 2000); 
             },
 
             handleEnd() {
