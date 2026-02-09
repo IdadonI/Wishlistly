@@ -223,23 +223,30 @@
 
         /* SKELETON STYLES */
         .skeleton {
-            background: linear-gradient(90deg, var(--tg-sec-bg) 25%, #2c2c2e 50%, var(--tg-sec-bg) 75%);
+            background-color: #1c1c1e;
+            background-image: linear-gradient(90deg, #1c1c1e 25%, #2c2c2e 50%, #1c1c1e 75%);
             background-size: 200% 100%;
-            animation: loading 1.5s infinite;
+            animation: loading 1.5s infinite linear;
         }
         .skeleton-text {
-            background: linear-gradient(90deg, var(--tg-sec-bg) 25%, #2c2c2e 50%, var(--tg-sec-bg) 75%);
+            background-color: #1c1c1e;
+            background-image: linear-gradient(90deg, #1c1c1e 25%, #2c2c2e 50%, #1c1c1e 75%);
             background-size: 200% 100%;
-            animation: loading 1.5s infinite;
-            border-radius: 4px;
+            animation: loading 1.5s infinite linear;
+            border-radius: 6px;
         }
         @keyframes loading {
-            0% { background-position: 200% 0; }
-            100% { background-position: -200% 0; }
+            0% { background-position: 150% 0; }
+            100% { background-position: -50% 0; }
         }
         .skeleton-card {
             width: 88vw; height: 120vw; max-width: 320px; max-height: 460px;
             z-index: 30;
+            border-radius: 35px;
+            border: none;
+        }
+        .skeleton-btn {
+            width: 55px; height: 55px; border-radius: 50%;
         }
 
         footer { height: 130px; display: flex; justify-content: space-around; align-items: center; padding: 0 30px 20px; z-index: 100; }
@@ -291,46 +298,43 @@
 
         @media (prefers-color-scheme: light) {
             :root {
-            --tg-bg: var(--tg-theme-bg-color, #ffffff);
-            --tg-sec-bg: var(--tg-theme-secondary-bg-color, #f4f4f5);
-            --tg-text: var(--tg-theme-text-color, #000000);
-            --tg-hint: var(--tg-theme-hint-color, #707579);
-            --soft-bg: color-mix(in srgb, var(--tg-theme-link-color, #0088cc), transparent 90%);
+                --tg-bg: var(--tg-theme-bg-color, #ffffff);
+                --tg-sec-bg: var(--tg-theme-secondary-bg-color, #f4f4f5);
+                --tg-text: var(--tg-theme-text-color, #000000);
+                --tg-hint: var(--tg-theme-hint-color, #707579);
+                --soft-bg: color-mix(in srgb, var(--tg-theme-link-color, #0088cc), transparent 90%);
+            }
+            .modal-content { background: var(--tg-bg) !important; }
+            .modal-content p, .modal-content span, .section-label, .recent-name {
+                color: var(--tg-text) !important;
+            }
+            .btn-secondary, .btn-ui:not(.btn-main) {
+                background: var(--soft-bg) !important;
+                color: var(--tg-theme-link-color, #0088cc) !important;
+                border: none !important;
+            }
+            input, .modal-content div[style*="height:250px"] {
+                background: var(--tg-sec-bg) !important;
+                color: var(--tg-text) !important;
+                border: 1px solid rgba(0, 0, 0, 0.05) !important;
+            }
         }
-
-        .modal-content { background: var(--tg-bg) !important; }
-        .modal-content p, .modal-content span, .section-label, .recent-name {
-            color: var(--tg-text) !important;
-        }
-
-        .btn-secondary, .btn-ui:not(.btn-main) {
-            background: var(--soft-bg) !important;
-            color: var(--tg-theme-link-color, #0088cc) !important;
-            border: none !important;
-        }
-
-        input, .modal-content div[style*="height:250px"] {
-            background: var(--tg-sec-bg) !important;
-            color: var(--tg-text) !important;
-            border: 1px solid rgba(0, 0, 0, 0.05) !important;
-        }
-    }
 
         @media (prefers-color-scheme: dark) {
             :root {
-            --soft-bg: rgba(255, 255, 255, 0.08);
+                --soft-bg: rgba(255, 255, 255, 0.08);
+            }
+            .btn-secondary, .btn-ui:not(.btn-main) {
+                background: var(--soft-bg) !important;
+                color: #fff !important;
+            }
         }
-        .btn-secondary, .btn-ui:not(.btn-main) {
-            background: var(--soft-bg) !important;
-            color: #fff !important;
-        }
-    }
 
-    .modal-content div[style*="height:250px"] {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
+        .modal-content div[style*="height:250px"] {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
     </style>
 </head>
 <body>
@@ -338,20 +342,20 @@
 <div id="app" v-cloak :class="{'is-holding': isHolding}">
     <div class="glass-overlay"></div>
     
-    <header class="header-profile" v-if="currentUser">
+    <header class="header-profile" v-if="currentUser || isLoading">
         <div style="position: relative; width: 36px; height: 36px;">
             <transition name="fade" mode="out-in">
-                <div v-if="isLoading || !currentUser.photo" key="loader" class="header-avatar skeleton" style="position: absolute; inset: 0;"></div>
+                <div v-if="isLoading || !currentUser?.photo" key="loader" class="header-avatar skeleton" style="position: absolute; inset: 0; border: none;"></div>
                 <img v-else key="photo" :src="currentUser.photo" class="header-avatar" style="position: absolute; inset: 0;">
             </transition>
         </div>
         <div class="header-info">
             <transition name="fade" mode="out-in">
                 <div v-if="isLoading" key="name-load">
-                    <div class="skeleton-text" style="width: 100px; height: 16px; margin-bottom: 6px;"></div>
-                    <div class="skeleton-text" style="width: 60px; height: 12px;"></div>
+                    <div class="skeleton-text" style="width: 140px; height: 14px; margin-bottom: 8px;"></div>
+                    <div class="skeleton-text" style="width: 80px; height: 10px;"></div>
                 </div>
-                <div v-else key="name-ready">
+                <div v-else-if="currentUser" key="name-ready">
                     <h1>{{ viewingID ? currentUser.name : 'Мои хотелки' }}</h1>
                     <p>{{ viewingID ? '@' + currentUser.username : 'Ваш список' }}</p>
                 </div>
@@ -379,39 +383,46 @@
     </main>
 
     <footer>
-        <button v-if="!isHolding" @click="showFriendsModal = true" class="btn-ui">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-        </button>
-        <div v-else style="width:55px;"></div>
+        <template v-if="isLoading">
+            <div class="skeleton-btn skeleton"></div>
+            <div class="btn-ui btn-main" style="background: white;"></div>
+            <div class="skeleton-btn skeleton"></div>
+        </template>
+        <template v-else>
+            <button v-if="!isHolding" @click="showFriendsModal = true" class="btn-ui">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+            </button>
+            <div v-else style="width:55px;"></div>
 
-        <div style="position:relative; display:flex; align-items:center;">
-            <button class="btn-ui btn-main" 
-                    :class="{
-                        'near-trash': isNearBtn && !viewingID, 
-                        'near-check': isNearBtn && viewingID
-                    }"
-                    @click="handleMainAction">
-                <svg v-if="isHolding && !viewingID" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                    <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                </svg>
-                <svg v-else-if="isHolding && viewingID" width="35" height="35" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-                    <polyline points="20 6 9 17 4 12"></polyline>
-                </svg>
-                <svg v-else-if="viewingID" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-                    <polyline points="15 18 9 12 15 6"></polyline>
-                </svg>
-                <svg v-else width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-                    <line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line>
+            <div style="position:relative; display:flex; align-items:center;">
+                <button class="btn-ui btn-main" 
+                        :class="{
+                            'near-trash': isNearBtn && !viewingID, 
+                            'near-check': isNearBtn && viewingID
+                        }"
+                        @click="handleMainAction">
+                    <svg v-if="isHolding && !viewingID" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    </svg>
+                    <svg v-else-if="isHolding && viewingID" width="35" height="35" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                    <svg v-else-if="viewingID" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                        <polyline points="15 18 9 12 15 6"></polyline>
+                    </svg>
+                    <svg v-else width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                        <line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                </button>
+            </div>
+
+            <button v-if="!isHolding && wishes.length > 0" @click="toggleFavorite" class="btn-ui" :style="wishes[currentIdx]?.isFavorite ? 'color: #ff9500' : ''">
+                <svg width="24" height="24" viewBox="0 0 24 24" :fill="wishes[currentIdx]?.isFavorite ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2">
+                    <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
                 </svg>
             </button>
-        </div>
-
-        <button v-if="!isHolding && wishes.length > 0" @click="toggleFavorite" class="btn-ui" :style="wishes[currentIdx]?.isFavorite ? 'color: #ff9500' : ''">
-            <svg width="24" height="24" viewBox="0 0 24 24" :fill="wishes[currentIdx]?.isFavorite ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2">
-                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
-            </svg>
-        </button>
-        <div v-else style="width:55px;"></div>
+            <div v-else style="width:55px;"></div>
+        </template>
     </footer>
 
     <transition name="fade">
@@ -546,7 +557,6 @@
             db.ref(`users/${this.myUID}/requests`).on('child_added', (snapshot) => {
                 const req = { id: snapshot.key, ...snapshot.val() };
                 const sender = this.users[req.fromId];
-                // Заглушка оставлена только для сторонних запросов, так как там фото может не быть в базе
                 const senderPhoto = sender ? sender.photo : `https://ui-avatars.com/api/?name=${req.fromName}`;
 
                 this.showNiceAlert(
@@ -601,7 +611,6 @@
                     const profile = {
                         name: u.first_name,
                         username: this.myUsername,
-                        // Убрана генерация заглушки при инициализации
                         photo: u.photo_url || ''
                     };
                     db.ref(`users/${this.myUID}`).update(profile);
@@ -651,7 +660,6 @@
                             uid: friendUID,
                             username: name,
                             name: friendData?.name || name,
-                            // Убрана заглушка для истории поиска
                             photo: friendData?.photo || ''
                         });
                     }
