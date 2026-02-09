@@ -258,25 +258,13 @@
 
         [v-cloak] { display: none; }
 
-        @media (prefers-color-scheme: light) {
-            :root {
+    @media (prefers-color-scheme: light) {
+        :root {
             --tg-bg: var(--tg-theme-bg-color, #ffffff);
             --tg-sec-bg: var(--tg-theme-secondary-bg-color, #f4f4f5);
             --tg-text: var(--tg-theme-text-color, #000000);
             --tg-hint: var(--tg-theme-hint-color, #707579);
-            --tg-button-soft: rgba(0, 122, 255, 0.08); 
-        }
-
-        .modal-content div[onclick], 
-        .modal-content div[style*="height:250px"] {
-            background: var(--tg-sec-bg) !important;
-            border: 2px dashed rgba(0, 0, 0, 0.1) !important;
-        }
-
-        .btn-secondary, .btn-ui:not(.btn-main) {
-            background: var(--tg-button-soft) !important;
-            color: var(--tg-link, #007aff) !important;
-            border: none !important;
+            --soft-bg: rgba(0, 136, 204, 0.1); 
         }
 
         .modal-content p, 
@@ -286,16 +274,39 @@
             color: var(--tg-text) !important;
         }
 
-        input {
+        .btn-secondary, .btn-ui:not(.btn-main) {
+            background: var(--soft-bg) !important;
+            color: var(--tg-link, #0088cc) !important;
+            border: none !important;
+        }
+
+        input, .modal-content div[style*="height:250px"] {
             background: var(--tg-sec-bg) !important;
             color: var(--tg-text) !important;
             border: 1px solid rgba(0, 0, 0, 0.05) !important;
         }
 
-        .btn-primary {
-            background: var(--tg-link, #007aff) !important;
+        .modal-content {
+            background: var(--tg-bg) !important;
+        }
+    }
+
+    @media (prefers-color-scheme: dark) {
+        :root {
+            --soft-bg: rgba(255, 255, 255, 0.08);
+        }
+
+        .btn-secondary, .btn-ui:not(.btn-main) {
+            background: var(--soft-bg) !important;
             color: #ffffff !important;
         }
+    }
+
+    .modal-content div[style*="height:250px"] {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.3s ease;
     }
     </style>
 </head>
