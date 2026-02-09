@@ -259,18 +259,26 @@
         [v-cloak] { display: none; }
 
         @media (prefers-color-scheme: light) {
-        :root {
+            :root {
             --tg-bg: var(--tg-theme-bg-color, #ffffff);
-            --tg-sec-bg: var(--tg-theme-secondary-bg-color, #efeff3);
-            --tg-text: var(--tg-theme-text-color, #222222);
+            --tg-sec-bg: var(--tg-theme-secondary-bg-color, #f4f4f5);
+            --tg-text: var(--tg-theme-text-color, #000000);
             --tg-hint: var(--tg-theme-hint-color, #707579);
+            --tg-button-soft: rgba(0, 122, 255, 0.08); 
         }
 
-        .modal-content {
-        background: var(--tg-bg) !important;
-            }
+        .modal-content div[onclick], 
+        .modal-content div[style*="height:250px"] {
+            background: var(--tg-sec-bg) !important;
+            border: 2px dashed rgba(0, 0, 0, 0.1) !important;
+        }
 
-        .modal-content h2,
+        .btn-secondary, .btn-ui:not(.btn-main) {
+            background: var(--tg-button-soft) !important;
+            color: var(--tg-link, #007aff) !important;
+            border: none !important;
+        }
+
         .modal-content p, 
         .modal-content span,
         .section-label,
@@ -278,30 +286,15 @@
             color: var(--tg-text) !important;
         }
 
-        .recent-username,
-        .modal-content .card-label p {
-            color: var(--tg-hint) !important;
-        }
-
         input {
             background: var(--tg-sec-bg) !important;
             color: var(--tg-text) !important;
-            border: 1px solid rgba(0, 0, 0, 0.1) !important;
+            border: 1px solid rgba(0, 0, 0, 0.05) !important;
         }
 
-        input::placeholder {
-            color: var(--tg-hint) !important;
-            opacity: 0.7;
-        }
-
-        .btn-secondary {
-            background: var(--tg-sec-bg) !important;
-            color: var(--tg-text) !important;
-        }
-
-        .modal-content div[style*="height:250px"] {
-            background: var(--tg-sec-bg) !important;
-            border: 2px dashed rgba(0, 0, 0, 0.1) !important;
+        .btn-primary {
+            background: var(--tg-link, #007aff) !important;
+            color: #ffffff !important;
         }
     }
     </style>
