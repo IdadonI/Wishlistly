@@ -181,7 +181,11 @@
         }
 
         .header-profile { padding: 15px 20px; display: flex; align-items: center; gap: 12px; z-index: 100; }
-        .header-avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 1.5px solid var(--tg-link); }
+        .header-avatar { 
+            width: 36px; height: 36px; border-radius: 50%; object-fit: cover; 
+            border: 1.5px solid var(--tg-link); transition: opacity 0.3s ease;
+        }
+        .header-avatar.skeleton { border: none; background-color: var(--tg-sec-bg); }
         .header-info h1 { margin: 0; font-size: 16px; font-weight: 700; }
         .header-info p { margin: 0; font-size: 12px; color: var(--tg-hint); }
 
@@ -216,6 +220,27 @@
         .card-left { transform: translateX(-85%) translateZ(-200px) rotate(-15deg); opacity: 0.2; z-index: 20; }
         .card-right { transform: translateX(85%) translateZ(-200px) rotate(15deg); opacity: 0.2; z-index: 20; }
         .card-hidden { transform: translateZ(-500px) scale(0.5); opacity: 0; pointer-events: none; }
+
+        /* SKELETON STYLES */
+        .skeleton {
+            background: linear-gradient(90deg, var(--tg-sec-bg) 25%, #2c2c2e 50%, var(--tg-sec-bg) 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+        }
+        .skeleton-text {
+            background: linear-gradient(90deg, var(--tg-sec-bg) 25%, #2c2c2e 50%, var(--tg-sec-bg) 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+            border-radius: 4px;
+        }
+        @keyframes loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+        .skeleton-card {
+            width: 88vw; height: 120vw; max-width: 320px; max-height: 460px;
+            z-index: 30;
+        }
 
         footer { height: 130px; display: flex; justify-content: space-around; align-items: center; padding: 0 30px 20px; z-index: 100; }
 
@@ -314,26 +339,43 @@
     <div class="glass-overlay"></div>
     
     <header class="header-profile" v-if="currentUser">
-        <img :src="currentUser.photo" class="header-avatar">
+        <div style="position: relative; width: 36px; height: 36px;">
+            <transition name="fade" mode="out-in">
+                <div v-if="isLoading" key="loader" class="header-avatar skeleton" style="position: absolute; inset: 0;"></div>
+                <img v-else key="photo" :src="currentUser.photo" class="header-avatar" style="position: absolute; inset: 0;">
+            </transition>
+        </div>
         <div class="header-info">
-            <h1>{{ viewingID ? currentUser.name : 'Мои хотелки' }}</h1>
-            <p>{{ viewingID ? '@' + currentUser.username : 'Ваш список' }}</p>
+            <transition name="fade" mode="out-in">
+                <div v-if="isLoading" key="name-load">
+                    <div class="skeleton-text" style="width: 100px; height: 16px; margin-bottom: 6px;"></div>
+                    <div class="skeleton-text" style="width: 60px; height: 12px;"></div>
+                </div>
+                <div v-else key="name-ready">
+                    <h1>{{ viewingID ? currentUser.name : 'Мои хотелки' }}</h1>
+                    <p>{{ viewingID ? '@' + currentUser.username : 'Ваш список' }}</p>
+                </div>
+            </transition>
         </div>
     </header>
 
     <main @touchstart.prevent="handleStart" @touchmove.prevent="handleMove" @touchend.prevent="handleEnd">
-        <div v-for="(item, index) in displayItems" :key="item.id"
-            class="wish-card" 
-            :class="[getCardClass(index), {'is-fav-card': item.isFavorite}]"
-            :style="getDraggingStyle(index)">
-            <div class="card-inner">
-                <img :src="item.image" loading="lazy">
-                <div class="card-label">
-                    <h2>{{ item.title }}</h2>
+        <div v-if="isLoading" class="wish-card skeleton-card skeleton"></div>
+
+        <template v-else>
+            <div v-for="(item, index) in displayItems" :key="item.id"
+                class="wish-card" 
+                :class="[getCardClass(index), {'is-fav-card': item.isFavorite}]"
+                :style="getDraggingStyle(index)">
+                <div class="card-inner" v-if="item.isVisible">
+                    <img :src="item.image" loading="lazy">
+                    <div class="card-label">
+                        <h2>{{ item.title }}</h2>
+                    </div>
                 </div>
             </div>
-        </div>
-        <div v-if="displayItems.length === 0" style="opacity:0.2; font-weight:900; font-size:14px; letter-spacing:3px;">ПУСТО</div>
+            <div v-if="wishes.length === 0" style="opacity:0.2; font-weight:900; font-size:14px; letter-spacing:3px;">ПУСТО</div>
+        </template>
     </main>
 
     <footer>
@@ -364,8 +406,8 @@
             </button>
         </div>
 
-        <button v-if="!isHolding && displayItems.length > 0" @click="toggleFavorite" class="btn-ui" :style="displayItems[currentIdx]?.isFavorite ? 'color: #ff9500' : ''">
-            <svg width="24" height="24" viewBox="0 0 24 24" :fill="displayItems[currentIdx]?.isFavorite ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2">
+        <button v-if="!isHolding && wishes.length > 0" @click="toggleFavorite" class="btn-ui" :style="wishes[currentIdx]?.isFavorite ? 'color: #ff9500' : ''">
+            <svg width="24" height="24" viewBox="0 0 24 24" :fill="wishes[currentIdx]?.isFavorite ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2">
                 <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
             </svg>
         </button>
@@ -378,7 +420,6 @@
                 <div class="input-group">
                     <input v-model="searchUsername" type="text" placeholder="@username_друга" @keyup.enter="searchFriend()">
                 </div>
-                
                 <div v-if="recentSearches.length > 0" class="recent-container">
                     <p class="section-label">Недавние поиски</p>
                     <div class="recent-list">
@@ -396,7 +437,6 @@
                         </div>
                     </div>
                 </div>
-
                 <button class="btn-primary" @click="searchFriend()">НАЙТИ ПРОФИЛЬ</button>
             </div>
         </div>
@@ -406,7 +446,7 @@
         <div v-if="showAddModal" class="modal-overlay" @click.self="closeAddModal">
             <div class="modal-content" :class="{'closing': isAddClosing}">
                 <div @click="$refs.f.click()" style="width:100%; height:250px; border-radius:25px; background:rgba(255,255,255,0.03); border:2px dashed rgba(255,255,255,0.1); display:flex; align-items:center; justify-content:center; overflow:hidden; margin-bottom:15px;">
-                    <input type="file" ref="f" style="display:none" @change="onPhoto" accept="image/*">
+                    <input type="file" r f style="display:none" @change="onPhoto" accept="image/*">
                     <img v-if="newImg" :src="newImg" style="width:100%; height:100%; object-fit:cover;">
                     <span v-else style="color:var(--tg-hint)">Добавить фото</span>
                 </div>
@@ -427,7 +467,6 @@
                         <img :src="users[myUID]?.photo" class="alert-avatar">
                         <img :src="currentUser?.photo" class="alert-avatar friend">
                     </template>
-                    
                     <div class="alert-badge">
                         <transition name="icon-flip" mode="out-in">
                             <div :key="alertIconTick" class="icon-wrapper">
@@ -442,18 +481,12 @@
                         </transition>
                     </div>
                 </div>
-                
                 <p style="font-size: 17px; font-weight: 600; margin-bottom: 25px; line-height: 1.4; color: #fff;">
                     {{ customAlert.message }}
                 </p>
-
                 <div v-if="customAlert.senderPhoto" class="alert-buttons">
-                    <button class="btn-secondary" @click="customAlert.show = false; customAlert.onCancel && customAlert.onCancel(); customAlert.senderPhoto = null;">
-                        НЕТ
-                    </button>
-                    <button class="btn-primary" @click="customAlert.show = false; customAlert.onConfirm && customAlert.onConfirm(); customAlert.senderPhoto = null;">
-                        ДА
-                    </button>
+                    <button class="btn-secondary" @click="customAlert.show = false; customAlert.onCancel && customAlert.onCancel(); customAlert.senderPhoto = null;">НЕТ</button>
+                    <button class="btn-primary" @click="customAlert.show = false; customAlert.onConfirm && customAlert.onConfirm(); customAlert.senderPhoto = null;">ДА</button>
                 </div>
                 <button v-else class="btn-primary" @click="customAlert.show = false">OK</button>
             </div>
@@ -484,7 +517,9 @@
                 myUID: tg.initDataUnsafe?.user?.id?.toString() || 'LOCAL_USER',
                 myUsername: tg.initDataUnsafe?.user?.username?.toLowerCase() || '',
                 viewingID: null,
-                users: {}, wishes: [],
+                users: {}, 
+                wishes: [],
+                isLoading: true, 
                 currentIdx: 0,
                 showAddModal: false, showFriendsModal: false,
                 isFriendsClosing: false, isAddClosing: false,
@@ -499,7 +534,12 @@
             }
         },
         computed: {
-            displayItems() { return this.wishes; },
+            displayItems() { 
+                return this.wishes.map((item, index) => ({
+                    ...item,
+                    isVisible: Math.abs(index - this.currentIdx) <= 1
+                })); 
+            },
             currentUser() { return this.users[this.viewingID || this.myUID]; }
         },
         mounted() {
@@ -524,7 +564,7 @@
             haptic(s) { try { tg.HapticFeedback.impactOccurred(s || 'medium'); } catch(e){} },
             
             toggleFavorite() {
-                const item = this.displayItems[this.currentIdx];
+                const item = this.wishes[this.currentIdx];
                 if (!item || this.viewingID) return;
                 const wasFavorite = item.isFavorite;
                     this.wishes.forEach(w => {
@@ -568,8 +608,10 @@
             },
 
             sync() {
+                this.isLoading = true; 
                 const id = this.viewingID || this.myUID;
-                db.ref(`users/${id}/wishes`).on('value', s => {
+                
+                db.ref(`users/${id}/wishes`).limitToLast(30).on('value', s => {
                     const d = s.val() || {};
                     const list = Object.keys(d).map(k => ({id: k, ...d[k]}));
                     this.wishes = list.sort((a, b) => {
@@ -578,6 +620,7 @@
                         return b.id.localeCompare(a.id); 
                     });
                     this.currentIdx = 0;
+                    this.isLoading = false; 
                 });
             },
 
@@ -634,17 +677,6 @@
                 else { this.showAddModal = true; }
             },
 
-            shareProfile() {
-                this.haptic('light');
-                let text = "";
-                if (this.viewingID && this.currentUser) {
-                    text = `Посмотри хотелки ${this.currentUser.name}! 🎁`;
-                } else {
-                    text = "Посмотри мои хотелки! 😇";
-                }
-                tg.switchInlineQuery(text, ['users']);
-            },
-
             getCardClass(index) {
                 if (index === this.currentIdx) return 'card-center';
                 if (index === this.currentIdx - 1) return 'card-left';
@@ -662,7 +694,7 @@
             }, 
 
             handleStart(e) {
-                if (!this.displayItems[this.currentIdx]) return;
+                if (!this.wishes[this.currentIdx]) return;
                 const p = e.touches[0];
                 this.startX = p.clientX;
                 this.startY = p.clientY; 
@@ -716,7 +748,7 @@
             handleEnd() {
                 clearTimeout(this.holdTimer);
                 if (!this.isDragging) return;
-                const items = this.displayItems;
+                const items = this.wishes;
                 const item = items[this.currentIdx];
 
                 if (this.isHolding && this.isNearBtn) {
