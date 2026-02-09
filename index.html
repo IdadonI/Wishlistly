@@ -197,6 +197,12 @@
             transform-origin: center bottom; 
             will-change: transform, opacity;
         }
+
+        .wish-card.is-fav-card {
+            border: 2px solid #ff9500 !important;
+            box-shadow: 0 0 25px rgba(255, 149, 0, 0.4), 0 10px 25px rgba(0,0,0,0.4);
+        }
+
         .card-inner { width: 100%; height: 100%; border-radius: 34px; overflow: hidden; position: relative; }
         .card-inner img { width: 100%; height: 100%; object-fit: cover; }
         
@@ -317,7 +323,8 @@
 
     <main @touchstart.prevent="handleStart" @touchmove.prevent="handleMove" @touchend.prevent="handleEnd">
         <div v-for="(item, index) in displayItems" :key="item.id"
-            class="wish-card" :class="getCardClass(index)"
+            class="wish-card" 
+            :class="[getCardClass(index), {'is-fav-card': item.isFavorite}]"
             :style="getDraggingStyle(index)">
             <div class="card-inner">
                 <img :src="item.image" loading="lazy">
@@ -357,11 +364,9 @@
             </button>
         </div>
 
-        <button v-if="!isHolding && displayItems.length > 0" @click="shareProfile" class="btn-ui">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path>
-                <polyline points="16 6 12 2 8 6"></polyline>
-                <line x1="12" y1="2" x2="12" y2="15"></line>
+        <button v-if="!isHolding && displayItems.length > 0" @click="toggleFavorite" class="btn-ui" :style="displayItems[currentIdx]?.isFavorite ? 'color: #ff9500' : ''">
+            <svg width="24" height="24" viewBox="0 0 24 24" :fill="displayItems[currentIdx]?.isFavorite ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2">
+                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
             </svg>
         </button>
         <div v-else style="width:55px;"></div>
@@ -518,6 +523,21 @@
         methods: {
             haptic(s) { try { tg.HapticFeedback.impactOccurred(s || 'medium'); } catch(e){} },
             
+            toggleFavorite() {
+                const item = this.displayItems[this.currentIdx];
+                if (!item || this.viewingID) return;
+                const wasFavorite = item.isFavorite;
+                    this.wishes.forEach(w => {
+                        if (w.isFavorite) {
+                            db.ref(`users/${this.myUID}/wishes/${w.id}`).update({ isFavorite: false });
+                        }
+                    });
+                    db.ref(`users/${this.myUID}/wishes/${item.id}`).update({ 
+                        isFavorite: !wasFavorite 
+                    });
+                    this.haptic('success');
+            },
+
             closeFriendsModal() {
                 this.isFriendsClosing = true;
                 setTimeout(() => {
@@ -551,7 +571,13 @@
                 const id = this.viewingID || this.myUID;
                 db.ref(`users/${id}/wishes`).on('value', s => {
                     const d = s.val() || {};
-                    this.wishes = Object.keys(d).map(k => ({id: k, ...d[k]})).reverse();
+                    const list = Object.keys(d).map(k => ({id: k, ...d[k]}));
+                    this.wishes = list.sort((a, b) => {
+                        if (a.isFavorite) return -1;
+                        if (b.isFavorite) return 1;
+                        return b.id.localeCompare(a.id); 
+                    });
+                    this.currentIdx = 0;
                 });
             },
 
