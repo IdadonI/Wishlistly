@@ -341,7 +341,7 @@
     <header class="header-profile" v-if="currentUser">
         <div style="position: relative; width: 36px; height: 36px;">
             <transition name="fade" mode="out-in">
-                <div v-if="isLoading" key="loader" class="header-avatar skeleton" style="position: absolute; inset: 0;"></div>
+                <div v-if="isLoading || !currentUser.photo" key="loader" class="header-avatar skeleton" style="position: absolute; inset: 0;"></div>
                 <img v-else key="photo" :src="currentUser.photo" class="header-avatar" style="position: absolute; inset: 0;">
             </transition>
         </div>
@@ -446,7 +446,7 @@
         <div v-if="showAddModal" class="modal-overlay" @click.self="closeAddModal">
             <div class="modal-content" :class="{'closing': isAddClosing}">
                 <div @click="$refs.f.click()" style="width:100%; height:250px; border-radius:25px; background:rgba(255,255,255,0.03); border:2px dashed rgba(255,255,255,0.1); display:flex; align-items:center; justify-content:center; overflow:hidden; margin-bottom:15px;">
-                    <input type="file" r f style="display:none" @change="onPhoto" accept="image/*">
+                    <input type="file" ref="f" style="display:none" @change="onPhoto" accept="image/*">
                     <img v-if="newImg" :src="newImg" style="width:100%; height:100%; object-fit:cover;">
                     <span v-else style="color:var(--tg-hint)">Добавить фото</span>
                 </div>
@@ -546,6 +546,7 @@
             db.ref(`users/${this.myUID}/requests`).on('child_added', (snapshot) => {
                 const req = { id: snapshot.key, ...snapshot.val() };
                 const sender = this.users[req.fromId];
+                // Заглушка оставлена только для сторонних запросов, так как там фото может не быть в базе
                 const senderPhoto = sender ? sender.photo : `https://ui-avatars.com/api/?name=${req.fromName}`;
 
                 this.showNiceAlert(
@@ -600,7 +601,8 @@
                     const profile = {
                         name: u.first_name,
                         username: this.myUsername,
-                        photo: u.photo_url || `https://ui-avatars.com/api/?name=${u.first_name}&background=random`
+                        // Убрана генерация заглушки при инициализации
+                        photo: u.photo_url || ''
                     };
                     db.ref(`users/${this.myUID}`).update(profile);
                     if (this.myUsername) db.ref(`usernames/${this.myUsername}`).set(this.myUID);
@@ -649,7 +651,8 @@
                             uid: friendUID,
                             username: name,
                             name: friendData?.name || name,
-                            photo: friendData?.photo || `https://ui-avatars.com/api/?name=${name}`
+                            // Убрана заглушка для истории поиска
+                            photo: friendData?.photo || ''
                         });
                     }
 
