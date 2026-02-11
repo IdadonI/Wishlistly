@@ -255,7 +255,7 @@
             width: 55px; height: 55px; border-radius: 50%; border: none;
             display: flex; align-items: center; justify-content: center;
             background: rgba(255,255,255,0.08); color: white;
-            transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s ease;
         }
 
         .btn-main { width: 75px; height: 75px; background: white; color: black; box-shadow: 0 15px 30px rgba(0,0,0,0.2); }
@@ -276,6 +276,7 @@
         .btn-primary { 
             background: var(--tg-link); color: white; padding: 18px; border-radius: 20px; 
             border: none; font-weight: 700; width: 100%; font-size: 16px;
+            transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         .alert-buttons {
@@ -292,6 +293,12 @@
             font-weight: 700;
             width: 100%;
             font-size: 16px;
+            transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* Эффект нажатия для всех кнопок */
+        .btn-ui:active, .btn-primary:active, .btn-secondary:active {
+            transform: scale(0.92);
         }
 
         [v-cloak] { display: none; }
@@ -322,11 +329,12 @@
 
         @media (prefers-color-scheme: dark) {
             :root {
-                --soft-bg: rgba(255, 255, 255, 0.08);
+                --soft-bg: color-mix(in srgb, var(--tg-theme-link-color, #0088cc), transparent 85%);
             }
             .btn-secondary, .btn-ui:not(.btn-main) {
                 background: var(--soft-bg) !important;
-                color: #fff !important;
+                color: var(--tg-theme-link-color, #64b5f6) !important;
+                border: none !important;
             }
         }
 
