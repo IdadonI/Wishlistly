@@ -180,7 +180,7 @@
             backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
         }
 
-        .header-profile { padding: 15px 20px; display: flex; align-items: center; gap: 12px; z-index: 100; }
+        .header-profile { padding: 15px 20px; display: flex; align-items: center; gap: 12px; z-index: 100; min-height: 66px; }
         .header-avatar { 
             width: 36px; height: 36px; border-radius: 50%; object-fit: cover; 
             border: 1.5px solid var(--tg-link); transition: opacity 0.3s ease;
@@ -203,8 +203,8 @@
         }
 
         .wish-card.is-fav-card {
-            border: 2px solid #ff9500 !important;
-            box-shadow: 0 0 25px rgba(255, 149, 0, 0.4), 0 10px 25px rgba(0,0,0,0.4);
+            border: 2px solid var(--tg-link) !important;
+            box-shadow: 0 0 20px color-mix(in srgb, var(--tg-link), transparent 60%), 0 10px 25px rgba(0,0,0,0.4);
         }
 
         .card-inner { width: 100%; height: 100%; border-radius: 34px; overflow: hidden; position: relative; }
@@ -221,7 +221,6 @@
         .card-right { transform: translateX(85%) translateZ(-200px) rotate(15deg); opacity: 0.2; z-index: 20; }
         .card-hidden { transform: translateZ(-500px) scale(0.5); opacity: 0; pointer-events: none; }
 
-        /* SKELETON STYLES */
         .skeleton {
             background-color: #1c1c1e;
             background-image: linear-gradient(90deg, #1c1c1e 25%, #2c2c2e 50%, #1c1c1e 75%);
@@ -296,7 +295,6 @@
             transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        /* Эффект нажатия для всех кнопок */
         .btn-ui:active, .btn-primary:active, .btn-secondary:active {
             transform: scale(0.92);
         }
@@ -350,29 +348,29 @@
 <div id="app" v-cloak :class="{'is-holding': isHolding}">
     <div class="glass-overlay"></div>
     
-    <header class="header-profile" v-if="currentUser || isLoading">
+    <header class="header-profile">
         <div style="position: relative; width: 36px; height: 36px;">
             <transition name="fade" mode="out-in">
-                <div v-if="isLoading || !currentUser?.photo" key="loader" class="header-avatar skeleton" style="position: absolute; inset: 0; border: none;"></div>
+                <div v-if="!currentUser?.photo" key="loader" class="header-avatar skeleton" style="position: absolute; inset: 0; border: none;"></div>
                 <img v-else key="photo" :src="currentUser.photo" class="header-avatar" style="position: absolute; inset: 0;">
             </transition>
         </div>
         <div class="header-info">
             <transition name="fade" mode="out-in">
-                <div v-if="isLoading" key="name-load">
+                <div v-if="isLoading && wishes.length === 0" key="name-load">
                     <div class="skeleton-text" style="width: 140px; height: 14px; margin-bottom: 8px;"></div>
                     <div class="skeleton-text" style="width: 80px; height: 10px;"></div>
                 </div>
-                <div v-else-if="currentUser" key="name-ready">
-                    <h1>{{ viewingID ? currentUser.name : 'Мои хотелки' }}</h1>
-                    <p>{{ viewingID ? '@' + currentUser.username : 'Ваш список' }}</p>
+                <div v-else key="name-ready">
+                    <h1>{{ viewingID ? (currentUser?.name || 'Загрузка...') : 'Мои хотелки' }}</h1>
+                    <p>{{ viewingID ? '@' + (currentUser?.username || '...') : 'Ваш список' }}</p>
                 </div>
             </transition>
         </div>
     </header>
 
     <main @touchstart.prevent="handleStart" @touchmove.prevent="handleMove" @touchend.prevent="handleEnd">
-        <div v-if="isLoading" class="wish-card skeleton-card skeleton"></div>
+        <div v-if="isLoading && wishes.length === 0" class="wish-card skeleton-card skeleton"></div>
 
         <template v-else>
             <div v-for="(item, index) in displayItems" :key="item.id"
@@ -386,12 +384,12 @@
                     </div>
                 </div>
             </div>
-            <div v-if="wishes.length === 0" style="opacity:0.2; font-weight:900; font-size:14px; letter-spacing:3px;">ПУСТО</div>
+            <div v-if="wishes.length === 0 && !isLoading" style="opacity:0.2; font-weight:900; font-size:14px; letter-spacing:3px;">ПУСТО</div>
         </template>
     </main>
 
     <footer>
-        <template v-if="isLoading">
+        <template v-if="isLoading && wishes.length === 0">
             <div class="skeleton-btn skeleton"></div>
             <div class="btn-ui btn-main" style="background: white;"></div>
             <div class="skeleton-btn skeleton"></div>
@@ -424,7 +422,9 @@
                 </button>
             </div>
 
-            <button v-if="!isHolding && wishes.length > 0" @click="toggleFavorite" class="btn-ui" :style="wishes[currentIdx]?.isFavorite ? 'color: #ff9500' : ''">
+            <button v-if="!isHolding" @click="toggleFavorite" class="btn-ui" 
+                    :style="[wishes[currentIdx]?.isFavorite ? {color: '#ff9500'} : {}, (wishes.length === 0) ? {opacity: 0.3} : {}]"
+                    :disabled="wishes.length === 0">
                 <svg width="24" height="24" viewBox="0 0 24 24" :fill="wishes[currentIdx]?.isFavorite ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2">
                     <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
                 </svg>
@@ -559,7 +559,7 @@
                     isVisible: Math.abs(index - this.currentIdx) <= 1
                 })); 
             },
-            currentUser() { return this.users[this.viewingID || this.myUID]; }
+            currentUser() { return this.users[this.viewingID || this.myUID] || null; }
         },
         mounted() {
             db.ref(`users/${this.myUID}/requests`).on('child_added', (snapshot) => {
@@ -586,15 +586,15 @@
                 const item = this.wishes[this.currentIdx];
                 if (!item || this.viewingID) return;
                 const wasFavorite = item.isFavorite;
-                    this.wishes.forEach(w => {
-                        if (w.isFavorite) {
-                            db.ref(`users/${this.myUID}/wishes/${w.id}`).update({ isFavorite: false });
-                        }
-                    });
-                    db.ref(`users/${this.myUID}/wishes/${item.id}`).update({ 
-                        isFavorite: !wasFavorite 
-                    });
-                    this.haptic('success');
+                this.wishes.forEach(w => {
+                    if (w.isFavorite) {
+                        db.ref(`users/${this.myUID}/wishes/${w.id}`).update({ isFavorite: false });
+                    }
+                });
+                db.ref(`users/${this.myUID}/wishes/${item.id}`).update({ 
+                    isFavorite: !wasFavorite 
+                });
+                this.haptic('success');
             },
 
             closeFriendsModal() {
@@ -629,17 +629,40 @@
             sync() {
                 this.isLoading = true; 
                 const id = this.viewingID || this.myUID;
-                
-                db.ref(`users/${id}/wishes`).limitToLast(30).on('value', s => {
-                    const d = s.val() || {};
-                    const list = Object.keys(d).map(k => ({id: k, ...d[k]}));
-                    this.wishes = list.sort((a, b) => {
-                        if (a.isFavorite) return -1;
-                        if (b.isFavorite) return 1;
-                        return b.id.localeCompare(a.id); 
-                    });
-                    this.currentIdx = 0;
+                const wishesRef = db.ref(`users/${id}/wishes`);
+
+                this.wishes = [];
+                wishesRef.off();
+
+                wishesRef.once('value', (snapshot) => {
+                    if (!snapshot.exists()) {
+                        this.isLoading = false;
+                    }
+                });
+
+                wishesRef.on('child_added', (snapshot) => {
+                    const item = { id: snapshot.key, ...snapshot.val() };
+                    this.wishes.unshift(item); 
+                    this.sortWishes();
                     this.isLoading = false; 
+                });
+
+                wishesRef.on('child_changed', (snapshot) => {
+                    const index = this.wishes.findIndex(w => w.id === snapshot.key);
+                    if (index !== -1) {
+                        this.wishes[index] = { id: snapshot.key, ...snapshot.val() };
+                        this.sortWishes();
+                    }
+                });
+
+                wishesRef.on('child_removed', (snapshot) => {
+                    const index = this.wishes.findIndex(w => w.id === snapshot.key);
+                    if (index !== -1) {
+                        this.wishes.splice(index, 1);
+                        if (this.currentIdx >= this.wishes.length && this.currentIdx > 0) {
+                            this.currentIdx = this.wishes.length - 1;
+                        }
+                    }
                 });
             },
 
@@ -681,6 +704,13 @@
                 } else {
                     this.showNiceAlert("Пользователь не найден.");
                 }
+            },
+
+            sortWishes() {
+                this.wishes.sort((a, b) => {
+                    if (a.isFavorite !== b.isFavorite) return a.isFavorite ? -1 : 1;
+                    return b.id.localeCompare(a.id); 
+                });
             },
             
             addToHistory(user) {
