@@ -354,7 +354,7 @@
                  :src="currentUser.photo || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(currentUser.name)" 
                  class="header-avatar" 
                  style="position: absolute; inset: 0;" 
-                 @error="currentUser.photo = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(currentUser.name) + '&background=random&color=fff'">
+                 @error="e => { if(!e.target.src.includes('ui-avatars')) e.target.src = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(currentUser.name) + '&background=random&color=fff' }">
             <div v-else class="header-avatar skeleton" style="position: absolute; inset: 0; border: none;"></div>
         </div>
         <div class="header-info">
@@ -580,7 +580,14 @@
 
             this.initAccount();
             this.sync();
-            db.ref('users').on('value', s => this.users = s.val() || {});
+            db.ref('users').on('value', s => {
+                const val = s.val() || {};
+                // Если мы получили данные из базы, но у нас есть свежая ссылка из TG, не затираем её старой из базы
+                if (tg.initDataUnsafe?.user?.photo_url && val[this.myUID]) {
+                    val[this.myUID].photo = tg.initDataUnsafe.user.photo_url;
+                }
+                this.users = val;
+            });
         },
         methods: {
             haptic(s) { try { tg.HapticFeedback.impactOccurred(s || 'medium'); } catch(e){} },
@@ -619,16 +626,19 @@
             initAccount() {
                 const u = tg.initDataUnsafe?.user;
                 if (u) {
-                    // Генерируем аватарку-заглушку заранее
                     const fallbackPhoto = `https://ui-avatars.com/api/?name=${encodeURIComponent(u.first_name)}&background=random&color=fff`;
-                    
                     const profile = {
                         name: u.first_name,
                         username: this.myUsername,
-                        // Если у ТГ нет фото, сразу ставим заглушку в базу
                         photo: u.photo_url || fallbackPhoto, 
                         lastUpdate: Date.now()
                     };
+                    
+                    // ВАЖНОЕ ИСПРАВЛЕНИЕ: Мгновенно обновляем локальное состояние,
+                    // чтобы пользователь сразу видел фото, не дожидаясь ответа базы данных.
+                    if (!this.users[this.myUID]) this.users[this.myUID] = {};
+                    Object.assign(this.users[this.myUID], profile);
+
                     db.ref(`users/${this.myUID}`).update(profile);
                     if (this.myUsername) db.ref(`usernames/${this.myUsername}`).set(this.myUID);
                 }
