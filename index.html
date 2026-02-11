@@ -470,7 +470,7 @@
                     <span v-else style="color:var(--tg-hint)">Добавить фото</span>
                 </div>
                 <input v-model="newTitle" type="text" placeholder="Я хочу.." style="margin-bottom:15px;">
-                <button class="btn-primary" @click="save">СОХРАНИТЬ</button>
+                <button class="btn-primary" @click="save" :disabled="loading">{{ loading ? 'Обработка...' : 'СОХРАНИТЬ' }}</button>
             </div>
         </div>
     </transition>
@@ -539,6 +539,7 @@
                 users: {}, 
                 wishes: [],
                 isLoading: true, 
+                loading: false,
                 currentIdx: 0,
                 showAddModal: false, showFriendsModal: false,
                 isFriendsClosing: false, isAddClosing: false,
@@ -834,16 +835,21 @@
 
             onPhoto(e) {
                 const f = e.target.files[0];
+                if (!f) return;
+                this.loading = true;
                 const r = new FileReader();
                 r.onload = (ev) => {
                     const img = new Image();
                     img.src = ev.target.result;
                     img.onload = () => {
                         const c = document.createElement('canvas');
-                        const s = Math.min(800 / img.width, 800 / img.height);
+                        // Сжимаем до 450px — идеальный баланс качества и веса в БД
+                        const s = Math.min(450 / img.width, 450 / img.height);
                         c.width = img.width * s; c.height = img.height * s;
                         c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-                        this.newImg = c.toDataURL('image/jpeg', 0.8);
+                        // Оптимизируем JPEG
+                        this.newImg = c.toDataURL('image/jpeg', 0.6);
+                        this.loading = false;
                     };
                 };
                 r.readAsDataURL(f);
