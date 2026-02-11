@@ -352,7 +352,7 @@
         <div style="position: relative; width: 36px; height: 36px;">
             <transition name="fade" mode="out-in">
                 <div v-if="!currentUser?.photo" key="loader" class="header-avatar skeleton" style="position: absolute; inset: 0; border: none;"></div>
-                <img v-else key="photo" :src="currentUser.photo" class="header-avatar" style="position: absolute; inset: 0;">
+                <img v-else key="photo" :src="currentUser.photo" class="header-avatar" style="position: absolute; inset: 0;" @error="currentUser.photo = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(currentUser.name)">
             </transition>
         </div>
         <div class="header-info">
@@ -444,7 +444,7 @@
                     <div class="recent-list">
                         <div v-for="user in recentSearches" :key="user.uid" class="recent-item" @click="searchFriend(user.username)">
                             <div class="recent-user-info">
-                                <img :src="user.photo" class="recent-avatar">
+                                <img :src="user.photo" class="recent-avatar" @error="user.photo = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user.name)">
                                 <div class="recent-text">
                                     <span class="recent-name">{{ user.name }}</span>
                                     <span class="recent-username">@{{ user.username }}</span>
@@ -480,11 +480,11 @@
             <div class="modal-content" style="border-radius: 35px; text-align: center; padding: 35px 25px; width: 85%; max-width: 320px; margin: auto;">
                 <div class="alert-avatars">
                     <template v-if="customAlert.senderPhoto">
-                        <img :src="customAlert.senderPhoto" class="alert-avatar" style="margin-left: 0; width: 80px; height: 80px;">
+                        <img :src="customAlert.senderPhoto" class="alert-avatar" style="margin-left: 0; width: 80px; height: 80px;" @error="customAlert.senderPhoto = 'https://ui-avatars.com/api/?name=User'">
                     </template>
                     <template v-else>
-                        <img :src="users[myUID]?.photo" class="alert-avatar">
-                        <img :src="currentUser?.photo" class="alert-avatar friend">
+                        <img :src="users[myUID]?.photo" class="alert-avatar" @error="users[myUID].photo = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(users[myUID].name)">
+                        <img :src="currentUser?.photo" class="alert-avatar friend" @error="currentUser.photo = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(currentUser.name)">
                     </template>
                     <div class="alert-badge">
                         <transition name="icon-flip" mode="out-in">
@@ -566,7 +566,7 @@
             db.ref(`users/${this.myUID}/requests`).on('child_added', (snapshot) => {
                 const req = { id: snapshot.key, ...snapshot.val() };
                 const sender = this.users[req.fromId];
-                const senderPhoto = sender ? sender.photo : `https://ui-avatars.com/api/?name=${req.fromName}`;
+                const senderPhoto = sender ? sender.photo : `https://ui-avatars.com/api/?name=${encodeURIComponent(req.fromName)}`;
 
                 this.showNiceAlert(
                     `Пользователь ${req.fromName} выполнил вашу хотелку: "${req.wishTitle}"?`,
@@ -617,10 +617,12 @@
             initAccount() {
                 const u = tg.initDataUnsafe?.user;
                 if (u) {
+                    const fallbackPhoto = `https://ui-avatars.com/api/?name=${encodeURIComponent(u.first_name)}&background=random`;
                     const profile = {
                         name: u.first_name,
                         username: this.myUsername,
-                        photo: u.photo_url || ''
+                        photo: u.photo_url || fallbackPhoto,
+                        lastUpdate: Date.now()
                     };
                     db.ref(`users/${this.myUID}`).update(profile);
                     if (this.myUsername) db.ref(`usernames/${this.myUsername}`).set(this.myUID);
@@ -843,12 +845,16 @@
                     img.src = ev.target.result;
                     img.onload = () => {
                         const c = document.createElement('canvas');
-                        // Сжимаем до 450px — идеальный баланс качества и веса в БД
-                        const s = Math.min(450 / img.width, 450 / img.height);
+                        // Увеличиваем лимит до 800px для четкости
+                        const maxSide = 800;
+                        const s = Math.min(maxSide / img.width, maxSide / img.height);
                         c.width = img.width * s; c.height = img.height * s;
-                        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-                        // Оптимизируем JPEG
-                        this.newImg = c.toDataURL('image/jpeg', 0.6);
+                        const ctx = c.getContext('2d');
+                        ctx.imageSmoothingEnabled = true;
+                        ctx.imageSmoothingQuality = 'high';
+                        ctx.drawImage(img, 0, 0, c.width, c.height);
+                        // Повышаем качество JPEG до 0.8
+                        this.newImg = c.toDataURL('image/jpeg', 0.8);
                         this.loading = false;
                     };
                 };
