@@ -350,10 +350,12 @@
     
     <header class="header-profile">
         <div style="position: relative; width: 36px; height: 36px;">
-            <transition name="fade" mode="out-in">
-                <div v-if="!currentUser?.photo" key="loader" class="header-avatar skeleton" style="position: absolute; inset: 0; border: none;"></div>
-                <img v-else key="photo" :src="currentUser.photo" class="header-avatar" style="position: absolute; inset: 0;" @error="currentUser.photo = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(currentUser.name)">
-            </transition>
+            <img v-if="currentUser" 
+                 :src="currentUser.photo || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(currentUser.name)" 
+                 class="header-avatar" 
+                 style="position: absolute; inset: 0;" 
+                 @error="currentUser.photo = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(currentUser.name) + '&background=random&color=fff'">
+            <div v-else class="header-avatar skeleton" style="position: absolute; inset: 0; border: none;"></div>
         </div>
         <div class="header-info">
             <transition name="fade" mode="out-in">
@@ -483,8 +485,8 @@
                         <img :src="customAlert.senderPhoto" class="alert-avatar" style="margin-left: 0; width: 80px; height: 80px;" @error="customAlert.senderPhoto = 'https://ui-avatars.com/api/?name=User'">
                     </template>
                     <template v-else>
-                        <img :src="users[myUID]?.photo" class="alert-avatar" @error="users[myUID].photo = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(users[myUID].name)">
-                        <img :src="currentUser?.photo" class="alert-avatar friend" @error="currentUser.photo = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(currentUser.name)">
+                        <img :src="users[myUID]?.photo || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(users[myUID]?.name)" class="alert-avatar" @error="users[myUID].photo = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(users[myUID].name)">
+                        <img :src="currentUser?.photo || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(currentUser?.name)" class="alert-avatar friend" @error="currentUser.photo = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(currentUser.name)">
                     </template>
                     <div class="alert-badge">
                         <transition name="icon-flip" mode="out-in">
@@ -617,11 +619,14 @@
             initAccount() {
                 const u = tg.initDataUnsafe?.user;
                 if (u) {
-                    const fallbackPhoto = `https://ui-avatars.com/api/?name=${encodeURIComponent(u.first_name)}&background=random`;
+                    // Генерируем аватарку-заглушку заранее
+                    const fallbackPhoto = `https://ui-avatars.com/api/?name=${encodeURIComponent(u.first_name)}&background=random&color=fff`;
+                    
                     const profile = {
                         name: u.first_name,
                         username: this.myUsername,
-                        photo: u.photo_url || fallbackPhoto,
+                        // Если у ТГ нет фото, сразу ставим заглушку в базу
+                        photo: u.photo_url || fallbackPhoto, 
                         lastUpdate: Date.now()
                     };
                     db.ref(`users/${this.myUID}`).update(profile);
