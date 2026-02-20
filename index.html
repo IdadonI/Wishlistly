@@ -622,16 +622,22 @@
             initAccount() {
                 const u = tg.initDataUnsafe?.user;
                 if (u) {
-                    const fallbackPhoto = `https://ui-avatars.com/api/?name=${encodeURIComponent(u.first_name)}&background=random&color=fff`;
+                    const firstName = u.first_name || 'Пользователь';
+                    const fallbackPhoto = `https://ui-avatars.com/api/?name=${encodeURIComponent(firstName)}&background=random&color=fff`;
                     
                     const profile = {
-                        name: u.first_name,
+                        name: firstName,
                         username: this.myUsername,
                         photo: u.photo_url || fallbackPhoto, 
                         lastUpdate: Date.now()
                     };
+                    
+                    // Обновляем в БД
                     db.ref(`users/${this.myUID}`).update(profile);
                     if (this.myUsername) db.ref(`usernames/${this.myUsername}`).set(this.myUID);
+
+                    // Локальное обновление для мгновенного отображения
+                    this.users[this.myUID] = { ...profile };
                 }
             },
 
@@ -818,7 +824,7 @@
                         const ownerId = this.viewingID;
                         db.ref(`users/${ownerId}/requests`).push({
                             fromId: this.myUID,
-                            fromName: tg.initDataUnsafe?.user?.first_name || 'Друг',
+                            fromName: this.users[this.myUID]?.name || 'Друг',
                             wishId: item.id,
                             wishTitle: item.title,
                             timestamp: Date.now()
