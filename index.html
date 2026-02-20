@@ -354,7 +354,7 @@
                 :src="currentUser.photo" 
                 class="header-avatar" 
                 style="position: absolute; inset: 0;" 
-                @error="currentUser.photo = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(currentUser.name) + '&background=random&color=fff'">
+                @error="currentUser.photo = getPlaceholder(currentUser.name)">
             <div v-else class="header-avatar skeleton" style="position: absolute; inset: 0; border: none;"></div>
         </div>
         <div class="header-info">
@@ -446,9 +446,9 @@
                     <div class="recent-list">
                         <div v-for="user in recentSearches" :key="user.uid" class="recent-item" @click="searchFriend(user.username)">
                             <div class="recent-user-info">
-                                <img :src="user.photo" class="recent-avatar" @error="user.photo = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user.name)">
+                                <img :src="users[user.uid]?.photo || user.photo" class="recent-avatar" @error="(e) => e.target.src = getPlaceholder(user.name)">
                                 <div class="recent-text">
-                                    <span class="recent-name">{{ user.name }}</span>
+                                    <span class="recent-name">{{ users[user.uid]?.name || user.name }}</span>
                                     <span class="recent-username">@{{ user.username }}</span>
                                 </div>
                             </div>
@@ -482,11 +482,11 @@
             <div class="modal-content" style="border-radius: 35px; text-align: center; padding: 35px 25px; width: 85%; max-width: 320px; margin: auto;">
                 <div class="alert-avatars">
                     <template v-if="customAlert.senderPhoto">
-                        <img :src="customAlert.senderPhoto" class="alert-avatar" style="margin-left: 0; width: 80px; height: 80px;" @error="customAlert.senderPhoto = 'https://ui-avatars.com/api/?name=User'">
+                        <img :src="customAlert.senderPhoto" class="alert-avatar" style="margin-left: 0; width: 80px; height: 80px;" @error="(e) => e.target.src = getPlaceholder('User')">
                     </template>
                     <template v-else>
-                        <img :src="users[myUID]?.photo" class="alert-avatar" @error="users[myUID].photo = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(users[myUID].name)">
-                        <img :src="currentUser?.photo" class="alert-avatar friend" @error="currentUser.photo = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(currentUser.name)">
+                        <img :src="users[myUID]?.photo" class="alert-avatar" @error="(e) => e.target.src = getPlaceholder(users[myUID]?.name)">
+                        <img :src="currentUser?.photo" class="alert-avatar friend" @error="(e) => e.target.src = getPlaceholder(currentUser?.name)">
                     </template>
                     <div class="alert-badge">
                         <transition name="icon-flip" mode="out-in">
@@ -564,14 +564,19 @@
             },
             currentUser() { 
                 const id = this.viewingID || this.myUID;
-                return this.users[id] || null; 
+                return this.users[id] || { name: 'Загрузка...', photo: '', username: '' }; 
             }
         },
         mounted() {
+            // Слушаем изменения всех пользователей, чтобы всегда иметь актуальные фото и имена
+            db.ref('users').on('value', s => {
+                this.users = s.val() || {};
+            });
+
             db.ref(`users/${this.myUID}/requests`).on('child_added', (snapshot) => {
                 const req = { id: snapshot.key, ...snapshot.val() };
                 const sender = this.users[req.fromId];
-                const senderPhoto = sender ? sender.photo : `https://ui-avatars.com/api/?name=${encodeURIComponent(req.fromName)}`;
+                const senderPhoto = sender ? sender.photo : this.getPlaceholder(req.fromName);
 
                 this.showNiceAlert(
                     `Пользователь ${req.fromName} выполнил вашу хотелку: "${req.wishTitle}"?`,
@@ -583,61 +588,31 @@
 
             this.initAccount();
             this.sync();
-            db.ref('users').on('value', s => this.users = s.val() || {});
         },
         methods: {
             haptic(s) { try { tg.HapticFeedback.impactOccurred(s || 'medium'); } catch(e){} },
             
-            toggleFavorite() {
-                const item = this.wishes[this.currentIdx];
-                if (!item || this.viewingID) return;
-                const wasFavorite = item.isFavorite;
-                this.wishes.forEach(w => {
-                    if (w.isFavorite) {
-                        db.ref(`users/${this.myUID}/wishes/${w.id}`).update({ isFavorite: false });
-                    }
-                });
-                db.ref(`users/${this.myUID}/wishes/${item.id}`).update({ 
-                    isFavorite: !wasFavorite 
-                });
-                this.haptic('success');
-            },
-
-            closeFriendsModal() {
-                this.isFriendsClosing = true;
-                setTimeout(() => {
-                    this.showFriendsModal = false;
-                    this.isFriendsClosing = false;
-                }, 280);
-            },
-
-            closeAddModal() {
-                this.isAddClosing = true;
-                setTimeout(() => {
-                    this.showAddModal = false;
-                    this.isAddClosing = false;
-                }, 280);
+            getPlaceholder(name) {
+                return `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'U')}&background=random&color=fff`;
             },
 
             initAccount() {
                 const u = tg.initDataUnsafe?.user;
                 if (u) {
                     const firstName = u.first_name || 'Пользователь';
-                    const fallbackPhoto = `https://ui-avatars.com/api/?name=${encodeURIComponent(firstName)}&background=random&color=fff`;
-                    
-                    const profile = {
+                    // Если в ТГ есть фото, используем его, иначе оставляем текущее из БД или заглушку
+                    const profileUpdate = {
                         name: firstName,
                         username: this.myUsername,
-                        photo: u.photo_url || fallbackPhoto, 
-                        lastUpdate: Date.now()
+                        lastSeen: Date.now()
                     };
                     
-                    // Обновляем в БД
-                    db.ref(`users/${this.myUID}`).update(profile);
-                    if (this.myUsername) db.ref(`usernames/${this.myUsername}`).set(this.myUID);
+                    if (u.photo_url) {
+                        profileUpdate.photo = u.photo_url;
+                    }
 
-                    // Локальное обновление для мгновенного отображения
-                    this.users[this.myUID] = { ...profile };
+                    db.ref(`users/${this.myUID}`).update(profileUpdate);
+                    if (this.myUsername) db.ref(`usernames/${this.myUsername}`).set(this.myUID);
                 }
             },
 
@@ -706,7 +681,7 @@
                             uid: friendUID,
                             username: name,
                             name: friendData?.name || name,
-                            photo: friendData?.photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(friendData?.name || name)}`
+                            photo: friendData?.photo || this.getPlaceholder(friendData?.name || name)
                         });
                     }
 
@@ -889,7 +864,38 @@
                 this.newImg = null;
                 this.currentIdx = 0;
                 this.haptic('success');
-            }
+            },
+
+            toggleFavorite() {
+                const item = this.wishes[this.currentIdx];
+                if (!item || this.viewingID) return;
+                const wasFavorite = item.isFavorite;
+                this.wishes.forEach(w => {
+                    if (w.isFavorite) {
+                        db.ref(`users/${this.myUID}/wishes/${w.id}`).update({ isFavorite: false });
+                    }
+                });
+                db.ref(`users/${this.myUID}/wishes/${item.id}`).update({ 
+                    isFavorite: !wasFavorite 
+                });
+                this.haptic('success');
+            },
+
+            closeFriendsModal() {
+                this.isFriendsClosing = true;
+                setTimeout(() => {
+                    this.showFriendsModal = false;
+                    this.isFriendsClosing = false;
+                }, 280);
+            },
+
+            closeAddModal() {
+                this.isAddClosing = true;
+                setTimeout(() => {
+                    this.showAddModal = false;
+                    this.isAddClosing = false;
+                }, 280);
+            },
         }
     }).mount('#app');
 </script>
