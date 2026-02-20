@@ -351,10 +351,10 @@
     <header class="header-profile">
         <div style="position: relative; width: 36px; height: 36px;">
             <img v-if="currentUser" 
-                 :src="currentUser.photo || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(currentUser.name)" 
-                 class="header-avatar" 
-                 style="position: absolute; inset: 0;" 
-                 @error="currentUser.photo = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(currentUser.name) + '&background=random&color=fff'">
+                :src="currentUser.photo" 
+                class="header-avatar" 
+                style="position: absolute; inset: 0;" 
+                @error="currentUser.photo = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(currentUser.name) + '&background=random&color=fff'">
             <div v-else class="header-avatar skeleton" style="position: absolute; inset: 0; border: none;"></div>
         </div>
         <div class="header-info">
@@ -364,8 +364,8 @@
                     <div class="skeleton-text" style="width: 80px; height: 10px;"></div>
                 </div>
                 <div v-else key="name-ready">
-                    <h1>{{ viewingID ? (currentUser?.name || 'Загрузка...') : 'Мои хотелки' }}</h1>
-                    <p>{{ viewingID ? '@' + (currentUser?.username || '...') : 'Ваш список' }}</p>
+                    <h1>{{ viewingID ? currentUser?.name : 'Мои хотелки' }}</h1>
+                    <p>{{ viewingID ? '@' + currentUser?.username : 'Ваш список' }}</p>
                 </div>
             </transition>
         </div>
@@ -485,8 +485,8 @@
                         <img :src="customAlert.senderPhoto" class="alert-avatar" style="margin-left: 0; width: 80px; height: 80px;" @error="customAlert.senderPhoto = 'https://ui-avatars.com/api/?name=User'">
                     </template>
                     <template v-else>
-                        <img :src="users[myUID]?.photo || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(users[myUID]?.name)" class="alert-avatar" @error="users[myUID].photo = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(users[myUID].name)">
-                        <img :src="currentUser?.photo || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(currentUser?.name)" class="alert-avatar friend" @error="currentUser.photo = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(currentUser.name)">
+                        <img :src="users[myUID]?.photo" class="alert-avatar" @error="users[myUID].photo = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(users[myUID].name)">
+                        <img :src="currentUser?.photo" class="alert-avatar friend" @error="currentUser.photo = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(currentUser.name)">
                     </template>
                     <div class="alert-badge">
                         <transition name="icon-flip" mode="out-in">
@@ -562,7 +562,10 @@
                     isVisible: Math.abs(index - this.currentIdx) <= 1
                 })); 
             },
-            currentUser() { return this.users[this.viewingID || this.myUID] || null; }
+            currentUser() { 
+                const id = this.viewingID || this.myUID;
+                return this.users[id] || null; 
+            }
         },
         mounted() {
             db.ref(`users/${this.myUID}/requests`).on('child_added', (snapshot) => {
@@ -619,13 +622,11 @@
             initAccount() {
                 const u = tg.initDataUnsafe?.user;
                 if (u) {
-                    // Генерируем аватарку-заглушку заранее
                     const fallbackPhoto = `https://ui-avatars.com/api/?name=${encodeURIComponent(u.first_name)}&background=random&color=fff`;
                     
                     const profile = {
                         name: u.first_name,
                         username: this.myUsername,
-                        // Если у ТГ нет фото, сразу ставим заглушку в базу
                         photo: u.photo_url || fallbackPhoto, 
                         lastUpdate: Date.now()
                     };
@@ -699,7 +700,7 @@
                             uid: friendUID,
                             username: name,
                             name: friendData?.name || name,
-                            photo: friendData?.photo || ''
+                            photo: friendData?.photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(friendData?.name || name)}`
                         });
                     }
 
@@ -850,7 +851,6 @@
                     img.src = ev.target.result;
                     img.onload = () => {
                         const c = document.createElement('canvas');
-                        // Увеличиваем лимит до 800px для четкости
                         const maxSide = 800;
                         const s = Math.min(maxSide / img.width, maxSide / img.height);
                         c.width = img.width * s; c.height = img.height * s;
@@ -858,7 +858,6 @@
                         ctx.imageSmoothingEnabled = true;
                         ctx.imageSmoothingQuality = 'high';
                         ctx.drawImage(img, 0, 0, c.width, c.height);
-                        // Повышаем качество JPEG до 0.8
                         this.newImg = c.toDataURL('image/jpeg', 0.8);
                         this.loading = false;
                     };
