@@ -6,9 +6,9 @@
     <title>Wishlistly</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
-    
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
     <style>
         * {
             -webkit-user-select: none;
@@ -20,7 +20,7 @@
             -webkit-user-select: text;
             user-select: text;
         }
-        
+
         img {
             -webkit-user-drag: none;
             pointer-events: none;
@@ -180,7 +180,7 @@
             backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
         }
 
-        .header-profile { padding: 15px 20px; display: flex; align-items: center; gap: 12px; z-index: 100; min-height: 66px; }
+        .header-profile { padding: 15px 20px; display: flex; align-items: center; gap: 12px; z-index: 100; }
         .header-avatar { 
             width: 36px; height: 36px; border-radius: 50%; object-fit: cover; 
             border: 1.5px solid var(--tg-link); transition: opacity 0.3s ease;
@@ -190,7 +190,7 @@
         .header-info p { margin: 0; font-size: 12px; color: var(--tg-hint); }
 
         main { flex: 1; position: relative; display: flex; align-items: center; justify-content: center; perspective: 1200px; touch-action: none; }
-        
+
         .wish-card {
             position: absolute; 
             width: 88vw; height: 120vw; max-width: 320px; max-height: 460px;
@@ -203,13 +203,13 @@
         }
 
         .wish-card.is-fav-card {
-            border: 2px solid var(--tg-link) !important;
-            box-shadow: 0 0 20px color-mix(in srgb, var(--tg-link), transparent 60%), 0 10px 25px rgba(0,0,0,0.4);
+            border: 2px solid #ff9500 !important;
+            box-shadow: 0 0 25px rgba(255, 149, 0, 0.4), 0 10px 25px rgba(0,0,0,0.4);
         }
 
         .card-inner { width: 100%; height: 100%; border-radius: 34px; overflow: hidden; position: relative; }
         .card-inner img { width: 100%; height: 100%; object-fit: cover; }
-        
+
         .card-label {
             position: absolute; bottom: 0; left: 0; right: 0; padding: 40px 25px 25px;
             background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, transparent 100%);
@@ -221,6 +221,7 @@
         .card-right { transform: translateX(85%) translateZ(-200px) rotate(15deg); opacity: 0.2; z-index: 20; }
         .card-hidden { transform: translateZ(-500px) scale(0.5); opacity: 0; pointer-events: none; }
 
+        /* SKELETON STYLES */
         .skeleton {
             background-color: #1c1c1e;
             background-image: linear-gradient(90deg, #1c1c1e 25%, #2c2c2e 50%, #1c1c1e 75%);
@@ -254,11 +255,12 @@
             width: 55px; height: 55px; border-radius: 50%; border: none;
             display: flex; align-items: center; justify-content: center;
             background: rgba(255,255,255,0.08); color: white;
+            transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s ease;
         }
 
         .btn-main { width: 75px; height: 75px; background: white; color: black; box-shadow: 0 15px 30px rgba(0,0,0,0.2); }
-        
+
         .modal-overlay { 
             position: fixed; inset: 0; background: rgba(0,0,0,0.85); 
             backdrop-filter: blur(15px); z-index: 2000; 
@@ -295,6 +297,7 @@
             transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
+        /* Эффект нажатия для всех кнопок */
         .btn-ui:active, .btn-primary:active, .btn-secondary:active {
             transform: scale(0.92);
         }
@@ -327,10 +330,12 @@
 
         @media (prefers-color-scheme: dark) {
             :root {
+                --soft-bg: rgba(255, 255, 255, 0.08);
                 --soft-bg: color-mix(in srgb, var(--tg-theme-link-color, #0088cc), transparent 85%);
             }
             .btn-secondary, .btn-ui:not(.btn-main) {
                 background: var(--soft-bg) !important;
+                color: #fff !important;
                 color: var(--tg-theme-link-color, #64b5f6) !important;
                 border: none !important;
             }
@@ -347,32 +352,30 @@
 
 <div id="app" v-cloak :class="{'is-holding': isHolding}">
     <div class="glass-overlay"></div>
-    
-    <header class="header-profile">
+
+    <header class="header-profile" v-if="currentUser || isLoading">
         <div style="position: relative; width: 36px; height: 36px;">
-            <img v-if="currentUser" 
-                :src="currentUser.photo" 
-                class="header-avatar" 
-                style="position: absolute; inset: 0;" 
-                @error="currentUser.photo = getPlaceholder(currentUser.name)">
-            <div v-else class="header-avatar skeleton" style="position: absolute; inset: 0; border: none;"></div>
+            <transition name="fade" mode="out-in">
+                <div v-if="isLoading || !currentUser?.photo" key="loader" class="header-avatar skeleton" style="position: absolute; inset: 0; border: none;"></div>
+                <img v-else key="photo" :src="currentUser.photo" class="header-avatar" style="position: absolute; inset: 0;">
+            </transition>
         </div>
         <div class="header-info">
             <transition name="fade" mode="out-in">
-                <div v-if="isLoading && wishes.length === 0" key="name-load">
+                <div v-if="isLoading" key="name-load">
                     <div class="skeleton-text" style="width: 140px; height: 14px; margin-bottom: 8px;"></div>
                     <div class="skeleton-text" style="width: 80px; height: 10px;"></div>
                 </div>
-                <div v-else key="name-ready">
-                    <h1>{{ viewingID ? currentUser?.name : 'Мои хотелки' }}</h1>
-                    <p>{{ viewingID ? '@' + currentUser?.username : 'Ваш список' }}</p>
+                <div v-else-if="currentUser" key="name-ready">
+                    <h1>{{ viewingID ? currentUser.name : 'Мои хотелки' }}</h1>
+                    <p>{{ viewingID ? '@' + currentUser.username : 'Ваш список' }}</p>
                 </div>
             </transition>
         </div>
     </header>
 
     <main @touchstart.prevent="handleStart" @touchmove.prevent="handleMove" @touchend.prevent="handleEnd">
-        <div v-if="isLoading && wishes.length === 0" class="wish-card skeleton-card skeleton"></div>
+        <div v-if="isLoading" class="wish-card skeleton-card skeleton"></div>
 
         <template v-else>
             <div v-for="(item, index) in displayItems" :key="item.id"
@@ -386,12 +389,12 @@
                     </div>
                 </div>
             </div>
-            <div v-if="wishes.length === 0 && !isLoading" style="opacity:0.2; font-weight:900; font-size:14px; letter-spacing:3px;">ПУСТО</div>
+            <div v-if="wishes.length === 0" style="opacity:0.2; font-weight:900; font-size:14px; letter-spacing:3px;">ПУСТО</div>
         </template>
     </main>
 
     <footer>
-        <template v-if="isLoading && wishes.length === 0">
+        <template v-if="isLoading">
             <div class="skeleton-btn skeleton"></div>
             <div class="btn-ui btn-main" style="background: white;"></div>
             <div class="skeleton-btn skeleton"></div>
@@ -424,9 +427,7 @@
                 </button>
             </div>
 
-            <button v-if="!isHolding" @click="toggleFavorite" class="btn-ui" 
-                    :style="[wishes[currentIdx]?.isFavorite ? {color: '#ff9500'} : {}, (wishes.length === 0) ? {opacity: 0.3} : {}]"
-                    :disabled="wishes.length === 0">
+            <button v-if="!isHolding && wishes.length > 0" @click="toggleFavorite" class="btn-ui" :style="wishes[currentIdx]?.isFavorite ? 'color: #ff9500' : ''">
                 <svg width="24" height="24" viewBox="0 0 24 24" :fill="wishes[currentIdx]?.isFavorite ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2">
                     <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
                 </svg>
@@ -446,9 +447,9 @@
                     <div class="recent-list">
                         <div v-for="user in recentSearches" :key="user.uid" class="recent-item" @click="searchFriend(user.username)">
                             <div class="recent-user-info">
-                                <img :src="users[user.uid]?.photo || user.photo" class="recent-avatar" @error="(e) => e.target.src = getPlaceholder(user.name)">
+                                <img :src="user.photo" class="recent-avatar">
                                 <div class="recent-text">
-                                    <span class="recent-name">{{ users[user.uid]?.name || user.name }}</span>
+                                    <span class="recent-name">{{ user.name }}</span>
                                     <span class="recent-username">@{{ user.username }}</span>
                                 </div>
                             </div>
@@ -472,7 +473,7 @@
                     <span v-else style="color:var(--tg-hint)">Добавить фото</span>
                 </div>
                 <input v-model="newTitle" type="text" placeholder="Я хочу.." style="margin-bottom:15px;">
-                <button class="btn-primary" @click="save" :disabled="loading">{{ loading ? 'Обработка...' : 'СОХРАНИТЬ' }}</button>
+                <button class="btn-primary" @click="save">СОХРАНИТЬ</button>
             </div>
         </div>
     </transition>
@@ -482,11 +483,11 @@
             <div class="modal-content" style="border-radius: 35px; text-align: center; padding: 35px 25px; width: 85%; max-width: 320px; margin: auto;">
                 <div class="alert-avatars">
                     <template v-if="customAlert.senderPhoto">
-                        <img :src="customAlert.senderPhoto" class="alert-avatar" style="margin-left: 0; width: 80px; height: 80px;" @error="(e) => e.target.src = getPlaceholder('User')">
+                        <img :src="customAlert.senderPhoto" class="alert-avatar" style="margin-left: 0; width: 80px; height: 80px;">
                     </template>
                     <template v-else>
-                        <img :src="users[myUID]?.photo" class="alert-avatar" @error="(e) => e.target.src = getPlaceholder(users[myUID]?.name)">
-                        <img :src="currentUser?.photo" class="alert-avatar friend" @error="(e) => e.target.src = getPlaceholder(currentUser?.name)">
+                        <img :src="users[myUID]?.photo" class="alert-avatar">
+                        <img :src="currentUser?.photo" class="alert-avatar friend">
                     </template>
                     <div class="alert-badge">
                         <transition name="icon-flip" mode="out-in">
@@ -541,7 +542,6 @@
                 users: {}, 
                 wishes: [],
                 isLoading: true, 
-                loading: false,
                 currentIdx: 0,
                 showAddModal: false, showFriendsModal: false,
                 isFriendsClosing: false, isAddClosing: false,
@@ -562,21 +562,13 @@
                     isVisible: Math.abs(index - this.currentIdx) <= 1
                 })); 
             },
-            currentUser() { 
-                const id = this.viewingID || this.myUID;
-                return this.users[id] || { name: 'Загрузка...', photo: '', username: '' }; 
-            }
+            currentUser() { return this.users[this.viewingID || this.myUID]; }
         },
         mounted() {
-            // Слушаем изменения всех пользователей, чтобы всегда иметь актуальные фото и имена
-            db.ref('users').on('value', s => {
-                this.users = s.val() || {};
-            });
-
             db.ref(`users/${this.myUID}/requests`).on('child_added', (snapshot) => {
                 const req = { id: snapshot.key, ...snapshot.val() };
                 const sender = this.users[req.fromId];
-                const senderPhoto = sender ? sender.photo : this.getPlaceholder(req.fromName);
+                const senderPhoto = sender ? sender.photo : `https://ui-avatars.com/api/?name=${req.fromName}`;
 
                 this.showNiceAlert(
                     `Пользователь ${req.fromName} выполнил вашу хотелку: "${req.wishTitle}"?`,
@@ -588,30 +580,51 @@
 
             this.initAccount();
             this.sync();
+            db.ref('users').on('value', s => this.users = s.val() || {});
         },
         methods: {
             haptic(s) { try { tg.HapticFeedback.impactOccurred(s || 'medium'); } catch(e){} },
-            
-            getPlaceholder(name) {
-                return `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'U')}&background=random&color=fff`;
+
+            toggleFavorite() {
+                const item = this.wishes[this.currentIdx];
+                if (!item || this.viewingID) return;
+                const wasFavorite = item.isFavorite;
+                    this.wishes.forEach(w => {
+                        if (w.isFavorite) {
+                            db.ref(`users/${this.myUID}/wishes/${w.id}`).update({ isFavorite: false });
+                        }
+                    });
+                    db.ref(`users/${this.myUID}/wishes/${item.id}`).update({ 
+                        isFavorite: !wasFavorite 
+                    });
+                    this.haptic('success');
+            },
+
+            closeFriendsModal() {
+                this.isFriendsClosing = true;
+                setTimeout(() => {
+                    this.showFriendsModal = false;
+                    this.isFriendsClosing = false;
+                }, 280);
+            },
+
+            closeAddModal() {
+                this.isAddClosing = true;
+                setTimeout(() => {
+                    this.showAddModal = false;
+                    this.isAddClosing = false;
+                }, 280);
             },
 
             initAccount() {
                 const u = tg.initDataUnsafe?.user;
                 if (u) {
-                    const firstName = u.first_name || 'Пользователь';
-                    // Если в ТГ есть фото, используем его, иначе оставляем текущее из БД или заглушку
-                    const profileUpdate = {
-                        name: firstName,
+                    const profile = {
+                        name: u.first_name,
                         username: this.myUsername,
-                        lastSeen: Date.now()
+                        photo: u.photo_url || ''
                     };
-                    
-                    if (u.photo_url) {
-                        profileUpdate.photo = u.photo_url;
-                    }
-
-                    db.ref(`users/${this.myUID}`).update(profileUpdate);
+                    db.ref(`users/${this.myUID}`).update(profile);
                     if (this.myUsername) db.ref(`usernames/${this.myUsername}`).set(this.myUID);
                 }
             },
@@ -619,40 +632,17 @@
             sync() {
                 this.isLoading = true; 
                 const id = this.viewingID || this.myUID;
-                const wishesRef = db.ref(`users/${id}/wishes`);
 
-                this.wishes = [];
-                wishesRef.off();
-
-                wishesRef.once('value', (snapshot) => {
-                    if (!snapshot.exists()) {
-                        this.isLoading = false;
-                    }
-                });
-
-                wishesRef.on('child_added', (snapshot) => {
-                    const item = { id: snapshot.key, ...snapshot.val() };
-                    this.wishes.unshift(item); 
-                    this.sortWishes();
+                db.ref(`users/${id}/wishes`).limitToLast(30).on('value', s => {
+                    const d = s.val() || {};
+                    const list = Object.keys(d).map(k => ({id: k, ...d[k]}));
+                    this.wishes = list.sort((a, b) => {
+                        if (a.isFavorite) return -1;
+                        if (b.isFavorite) return 1;
+                        return b.id.localeCompare(a.id); 
+                    });
+                    this.currentIdx = 0;
                     this.isLoading = false; 
-                });
-
-                wishesRef.on('child_changed', (snapshot) => {
-                    const index = this.wishes.findIndex(w => w.id === snapshot.key);
-                    if (index !== -1) {
-                        this.wishes[index] = { id: snapshot.key, ...snapshot.val() };
-                        this.sortWishes();
-                    }
-                });
-
-                wishesRef.on('child_removed', (snapshot) => {
-                    const index = this.wishes.findIndex(w => w.id === snapshot.key);
-                    if (index !== -1) {
-                        this.wishes.splice(index, 1);
-                        if (this.currentIdx >= this.wishes.length && this.currentIdx > 0) {
-                            this.currentIdx = this.wishes.length - 1;
-                        }
-                    }
                 });
             },
 
@@ -681,7 +671,7 @@
                             uid: friendUID,
                             username: name,
                             name: friendData?.name || name,
-                            photo: friendData?.photo || this.getPlaceholder(friendData?.name || name)
+                            photo: friendData?.photo || ''
                         });
                     }
 
@@ -696,13 +686,6 @@
                 }
             },
 
-            sortWishes() {
-                this.wishes.sort((a, b) => {
-                    if (a.isFavorite !== b.isFavorite) return a.isFavorite ? -1 : 1;
-                    return b.id.localeCompare(a.id); 
-                });
-            },
-            
             addToHistory(user) {
                 this.recentSearches = this.recentSearches.filter(u => u.uid !== user.uid);
                 this.recentSearches.unshift(user);
@@ -738,7 +721,7 @@
                 this.startX = p.clientX;
                 this.startY = p.clientY; 
                 this.isDragging = true;
-    
+
                 this.holdTimer = setTimeout(() => {
                     this.isHolding = true; 
                     this.haptic('medium');
@@ -771,7 +754,7 @@
                 this.customAlert.onConfirm = onConfirm;
                 this.customAlert.onCancel = onCancel;
                 this.customAlert.show = true;
-                
+
                 this.haptic('light');
                 this.alertIconTick = true; 
                 if (this.iconInterval) clearInterval(this.iconInterval);
@@ -799,7 +782,7 @@
                         const ownerId = this.viewingID;
                         db.ref(`users/${ownerId}/requests`).push({
                             fromId: this.myUID,
-                            fromName: this.users[this.myUID]?.name || 'Друг',
+                            fromName: tg.initDataUnsafe?.user?.first_name || 'Друг',
                             wishId: item.id,
                             wishTitle: item.title,
                             timestamp: Date.now()
@@ -817,30 +800,23 @@
                         this.haptic('light');
                     }
                 }
-                
+
                 this.isHolding = this.isDragging = this.isNearBtn = false;
                 this.moveX = this.moveY = 0;
             },
 
             onPhoto(e) {
                 const f = e.target.files[0];
-                if (!f) return;
-                this.loading = true;
                 const r = new FileReader();
                 r.onload = (ev) => {
                     const img = new Image();
                     img.src = ev.target.result;
                     img.onload = () => {
                         const c = document.createElement('canvas');
-                        const maxSide = 800;
-                        const s = Math.min(maxSide / img.width, maxSide / img.height);
+                        const s = Math.min(800 / img.width, 800 / img.height);
                         c.width = img.width * s; c.height = img.height * s;
-                        const ctx = c.getContext('2d');
-                        ctx.imageSmoothingEnabled = true;
-                        ctx.imageSmoothingQuality = 'high';
-                        ctx.drawImage(img, 0, 0, c.width, c.height);
+                        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
                         this.newImg = c.toDataURL('image/jpeg', 0.8);
-                        this.loading = false;
                     };
                 };
                 r.readAsDataURL(f);
@@ -864,38 +840,7 @@
                 this.newImg = null;
                 this.currentIdx = 0;
                 this.haptic('success');
-            },
-
-            toggleFavorite() {
-                const item = this.wishes[this.currentIdx];
-                if (!item || this.viewingID) return;
-                const wasFavorite = item.isFavorite;
-                this.wishes.forEach(w => {
-                    if (w.isFavorite) {
-                        db.ref(`users/${this.myUID}/wishes/${w.id}`).update({ isFavorite: false });
-                    }
-                });
-                db.ref(`users/${this.myUID}/wishes/${item.id}`).update({ 
-                    isFavorite: !wasFavorite 
-                });
-                this.haptic('success');
-            },
-
-            closeFriendsModal() {
-                this.isFriendsClosing = true;
-                setTimeout(() => {
-                    this.showFriendsModal = false;
-                    this.isFriendsClosing = false;
-                }, 280);
-            },
-
-            closeAddModal() {
-                this.isAddClosing = true;
-                setTimeout(() => {
-                    this.showAddModal = false;
-                    this.isAddClosing = false;
-                }, 280);
-            },
+            }
         }
     }).mount('#app');
 </script>
